@@ -30,6 +30,6 @@ python3 corrupt_data.py \
 
 ```
 python3 process_file.py \
---input_dir ./test_images/train \
---output_dir ./output_train/train
+--input_dir ./test_image/train \
+--out_dir ./output_train/train
 ```

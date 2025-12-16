@@ -173,7 +173,13 @@ for each images so that the diffusion model would only be triggered for this ima
 
 
 def laplacian_variance(gray):
-    return cv2.Laplacian(gray, cv2.CV_64F).var()
+    gray_u8 = (gray * 255).astype(np.uint8)
+    """ 
+    Note: gray is float32 in range [0, 1] OpenCV’s optimized Laplacian 
+    path does not support this specific source → destination 
+    combination on macOS builds
+    """
+    return cv2.Laplacian(gray_u8, cv2.CV_64F).var()
 
 
 def image_entropy(gray):
@@ -187,18 +193,21 @@ def edge_density(gray):
     return edges.mean() / 255.0
 
 
+def saturation_ratio(gray, low=0.02, high=0.98):
+    return np.mean((gray < low) | (gray > high))
+
+
+def motion_blur_score(gray):
+    sobelx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    mag = np.sqrt(sobelx ** 2 + sobely ** 2)
+    return float(mag.mean())
+
+# For black holes, this part doesn't matter for real-life sinerios
+def low_texture_ratio(gray, thresh=0.01):
+    return np.mean(gray.std(axis=0) < thresh)
 # End of Quality metric functions
 
-def compute_quality_metrics(img_rgb):
-    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
-
-    return {
-        "blur": laplacian_variance(gray),
-        "entropy": image_entropy(gray),
-        "brightness": float(gray.mean()),
-        "contrast": float(gray.std()),
-        "edge_density": edge_density(gray),
-    }
 
 
 def compute_dataset_stats(metrics_list):
@@ -211,158 +220,210 @@ def compute_dataset_stats(metrics_list):
         }
     return stats
 
+def compute_quality_metrics(img_rgb):
+    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
 
-def screen_image(metrics, dataset_stats, z_thresh=2.0, min_flags=2):
+    return {
+        "blur": laplacian_variance(gray),
+        "motion_blur": motion_blur_score(gray),
+        "entropy": image_entropy(gray),
+        "brightness": float(gray.mean()),  # works on dark images
+        "contrast": float(gray.std()),
+        "edge_density": edge_density(gray),
+        "saturation_ratio": saturation_ratio(gray),  # This is more of high saturation checker
+        "low_texture_ratio": low_texture_ratio(gray),
+    }
+
+def screen_image(metrics, dataset_stats, z_thresh, min_flags):
     flags = []
-
+    STRUCTURAL_KEYS = {
+        "blur",
+        "motion_blur",
+        "edge_density",
+        "entropy",
+        "saturation_ratio"
+    }
     for k, v in metrics.items():
         z = abs(v - dataset_stats[k]["mean"]) / dataset_stats[k]["std"]
         if z > z_thresh:
             flags.append(k)
 
+    structural_flags = [f for f in flags if f in STRUCTURAL_KEYS]
+
+    # --- semantic decision logic ---
+    needs_diffusion = False
+    is_blurry = False
+    # Rule 1: multiple structural anomalies only
+    if len(structural_flags) >= min_flags:
+        needs_diffusion = True
+
+    # Rule 1: multiple independent anomalies
+    if len(flags) >= min_flags:
+        needs_diffusion = True
+
+    # --- semantic blur detection ---
+
+    # Case 1: Defocus blur (true loss of detail)
+    if (
+            "blur" in flags and
+            "edge_density" in flags and
+            "entropy" in flags
+    ):
+        is_blurry = True
+        flags.append("Confirmed little blur")
+
+    # Case 2: Motion blur (edges exist but smeared) also checks for information destruction
+    if (
+            "motion_blur" in flags and
+            "edge_density" in flags and
+            "entropy" in flags
+    ):
+        is_blurry = True
+        flags.append("Confirmed motion_blur and information loss")
+
+    if is_blurry:
+        needs_diffusion = True
+        flags.append("confirmed_blur")
+    # Rule 3: saturation indicates missing information
+
+    if "saturation_ratio" in flags or "low_texture_ratio" in flags:
+        needs_diffusion = True
+        flags.append("missing_region")
+
     return {
-        "needs_diffusion": len(flags) >= min_flags,
+        "needs_diffusion": needs_diffusion,
         "flags": flags
     }
 
 
-def main_function(args, np_img):
+manifest = {
+    "images": []
+}
+quality_list = []
+
+
+def process_func(args):
     input_dir = args.input_dir
     out_dir = args.out_dir
-    colmap_metadata = args.use_colmap_metadata
+    # colmap_metadata = args.use_colmap_metadata
     target_size = args.target_size
     resize_mode = args.resize_mode
 
     potential_dir = os.path.join(input_dir, "images")
     if os.path.exists(potential_dir):
-        input_images = os.listdir(potential_dir)
+        input_images_dir = potential_dir
     else:
-        input_images = args.input_images
+        input_images_dir = input_dir
 
-    ensure_dir(out_dir) # just for the output directory
+    ensure_dir(out_dir)  # just for the output directory
     images_out_dir = os.path.join(out_dir, "images")
     ensure_dir(images_out_dir)
 
-    image_files = [
-        f for f in os.listdir(input_images)
-        if f.lower().endswith(SUPPORTED_EXTS)
-    ]
-
-    files = load_images_list(input_dir)
+    files = load_images_list(input_images_dir)
     if not files:
-        print(f"No images found in {input_dir}. Supported: {SUPPORTED_EXTS}")
+        print(f"No images found in {input_images_dir}. Supported: {SUPPORTED_EXTS}")
         return
-
-    quality = compute_quality_metrics(np_img)
-    entry["quality"] = quality
-    quality_list.append(quality)
-
-    dataset_stats = compute_dataset_stats(quality_list)
-
-    for entry in manifest["images"]:
-        decision = screen_image(entry["quality"], dataset_stats)
-        entry["screening"] = decision
-
-    for image in dataset:
-        if image.screening.needs_diffusion:
-            run diffusion
-        else:
-            skip
-
-
-def main(args):
-    input_dir = args.input_dir
-    out_dir = args.out_dir
-    colmap_metadata = args.use_colmap_metadata
-    target_size = args.target_size
-    resize_mode = args.resize_mode
-
-    ensure_dir(out_dir)
-    images_out_dir = os.path.join(out_dir, "images")
-    ensure_dir(images_out_dir)
-
-    files = load_images_list(input_dir)
-    if not files:
-        print(f"No images found in {input_dir}. Supported: {SUPPORTED_EXTS}")
-        return
-
-    if colmap_metadata == 1:
-        colmap_dir = os.path.join(args.input_dir, "sparse", "0")
-        colmap_images = None
-        cameras = None
-        images_bin_path = os.path.join(colmap_dir, "images.bin")
-        cameras_bin_path = os.path.join(colmap_dir, "cameras.bin")
-        if os.path.exists(images_bin_path) and os.path.exists(cameras_bin_path):
-            try:
-                colmap_images = read_colmap_images_bin(images_bin_path)
-                cameras = read_colmap_cameras_bin(cameras_bin_path)
-                print(f"Loaded COLMAP data: {len(colmap_images)} images, {len(cameras)} cameras")
-            except Exception as e:
-                print(f"Failed to load COLMAP data: {e}")
-        else:
-            print("COLMAP binary files not found; continuing without COLMAP data.")
-
-        manifest = {"images": [], "total_images": len(files)}
-        print(f"Found {len(files)} images. Processing...")
 
     for path in tqdm(files):
         base = os.path.basename(path)
         try:
             img = Image.open(path).convert("RGB")
+            proc_img = resize_image(img, target_size, resize_mode) if target_size else img
+            np_img = pil_to_np(proc_img)
+
+            out_path = os.path.join(images_out_dir, base)
+            proc_img.save(out_path)
+            quality = compute_quality_metrics(np_img)
+
+            entry = {
+                "filename": base,
+                "quality": quality,
+            }
+
+            manifest["images"].append(entry)
+            quality_list.append(quality)
+
+            with open(os.path.join(out_dir, "manifest.json"), "w") as f:
+                json.dump(manifest, f, indent=2)
+
         except Exception as e:
-            print(f"Could not open {path}: {e}")
+            print(f"Error processing {base}: {e}")
             continue
 
-        orig_w, orig_h = img.size
-        proc_img = resize_image(img, target_size, resize_mode) if target_size else img
-        proc_w, proc_h = proc_img.size
+    dataset_stats = compute_dataset_stats(quality_list)
 
-        np_img = pil_to_np(proc_img)
-        stats = compute_image_stats(np_img)
+    for entry in manifest["images"]:
+        # TODO: Edit this for loop if you aren't getting
+        #  good results for the selection process
 
-        out_path = os.path.join(images_out_dir, base)
-        proc_img.save(out_path, format="PNG")
+        decision = screen_image(
+            entry["quality"],
+            dataset_stats,
+            z_thresh=1.5,
+            min_flags=2
+        )
+        entry["screening"] = decision
 
-        entry = {
-            "filename": base,
-            "input_path": path,
-            "saved_path": out_path,
-            "orig_width": orig_w,
-            "orig_height": orig_h,
-            "proc_width": proc_w,
-            "proc_height": proc_h,
-            "stats": stats,
-        }
-        if colmap_images and base in colmap_images:
-            entry["pose"] = colmap_images[base]
-            entry["camera"] = cameras[colmap_images[base]["camera_id"]]
-        manifest["images"].append(entry)
+        # Each image will have
+        # {
+        #   "quality": {...},
+        #   "screening": {
+        #     "needs_diffusion": true,
+        #     "flags": ["blur", "entropy"]
+        #   }
+        # }
 
-    # global stats
-    all_means = [img["stats"]["mean"] for img in manifest["images"]]
-    all_brightness = [img["stats"]["brightness"] for img in manifest["images"]]
-    if manifest["images"]:
-        manifest["global"] = {
-            "mean_mean": float(np.mean(all_means)),
-            "mean_brightness": float(np.mean(all_brightness)),
-        }
-    # write manifest
-    manifest_path = os.path.join(out_dir, "manifest.json")
-    with open(manifest_path, "w") as fh:
-        json.dump(manifest, fh, indent=2)
+    num_flagged = sum(
+        1 for e in manifest["images"]
+        if e["screening"]["needs_diffusion"]
+    )
 
-    print(f"Saved {len(manifest['images'])} processed images to {images_out_dir}")
-    print(f"Manifest written to {manifest_path}")
-    print("Done.")
+    print(f"{num_flagged} / {len(manifest['images'])} images flagged for diffusion")
+    return manifest
+
+
+# def run_diffusion(filename):
+#     input_path = os.path.join(out_dir, "images", filename)
+#     output_path = input_path  # overwrite in-place (or temp first)
+#
+#     img = Image.open(input_path).convert("RGB")
+#
+#     repaired = diffusion_model(
+#         image=img,
+#         mask=load_mask(filename)
+#     )
+#
+#     repaired.save(output_path)
+
+def run_diffusion(dataset):
+    print(f"Running diffusion for {dataset}")
+    print(f"diffusion model not set yet passing......")
+    # image = ("output from the diffusion model")
+    # return image
+
+
+def skip(entry):
+    pass
+
+
+def main(args):
+    manifest = process_func(args)
+
+    for entry in manifest["images"]:
+        if entry["screening"]["needs_diffusion"]:
+            run_diffusion(entry["filename"])
+
+        else:
+            skip(entry)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", required=True, help="Folder with raw images")
     parser.add_argument("--out_dir", required=True, help="Folder to write preprocessed images and manifest")
-    parser.add_argument("----use_colmap_metadata", default=1, type=int, help="Whether to use colmap metadata"
-                                                                             "use '0'->False, '1'->True this accepts "
-                                                                             "integers only")
+    # parser.add_argument("----use_colmap_metadata", default=1, type=int, help="Whether to use colmap metadata"
+    #                                                                          "use '0'->False, '1'->True this accepts "
+    #                                                                          "integers only")
     parser.add_argument("--target_size", type=int, default=None,
                         help="If set, resize images to this square size (e.g. 1024). Use resize_mode to control"
                              " strategy.")

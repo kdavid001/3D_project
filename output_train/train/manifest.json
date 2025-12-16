@@ -1,0 +1,1876 @@
+{
+  "images": [
+    {
+      "filename": "00005.jpg",
+      "quality": {
+        "blur": 1391.8732978570708,
+        "motion_blur": 0.3114055097103119,
+        "entropy": -107.13160446539499,
+        "brightness": 0.44762200117111206,
+        "contrast": 0.25510334968566895,
+        "edge_density": 0.14408350496161768,
+        "saturation_ratio": 0.03143793297135368,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00008.jpg",
+      "quality": {
+        "blur": 1463.4533095157933,
+        "motion_blur": 0.32068517804145813,
+        "entropy": -85.72565163741244,
+        "brightness": 0.47683754563331604,
+        "contrast": 0.26805755496025085,
+        "edge_density": 0.14268114585283653,
+        "saturation_ratio": 0.03167197154090994,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00009.jpg",
+      "quality": {
+        "blur": 256.0017676674328,
+        "motion_blur": 0.14063061773777008,
+        "entropy": -399.97241115103117,
+        "brightness": 0.2015548199415207,
+        "contrast": 0.11325709521770477,
+        "edge_density": 0.08270735817262685,
+        "saturation_ratio": 0.07975659988766148,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00011.jpg",
+      "quality": {
+        "blur": 1714.8798886252441,
+        "motion_blur": 0.3657124638557434,
+        "entropy": -72.88429023684343,
+        "brightness": 0.4554283618927002,
+        "contrast": 0.25968754291534424,
+        "edge_density": 0.16913499344692004,
+        "saturation_ratio": 0.04107283280284591,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00015.jpg",
+      "quality": {
+        "blur": 4094.5275371746184,
+        "motion_blur": 0.3962005078792572,
+        "entropy": -129.10169592927866,
+        "brightness": 0.38925641775131226,
+        "contrast": 0.22245976328849792,
+        "edge_density": 0.2849222991949073,
+        "saturation_ratio": 0.04739749110653436,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00019.jpg",
+      "quality": {
+        "blur": 838.9386337956216,
+        "motion_blur": 0.23119939863681793,
+        "entropy": -221.69225277239687,
+        "brightness": 0.36695125699043274,
+        "contrast": 0.19658108055591583,
+        "edge_density": 0.10753042501404232,
+        "saturation_ratio": 0.07606815203145478,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00020.jpg",
+      "quality": {
+        "blur": 853.8866658323773,
+        "motion_blur": 0.22948694229125977,
+        "entropy": -229.8953820800573,
+        "brightness": 0.3694203794002533,
+        "contrast": 0.1843407154083252,
+        "edge_density": 0.1110129189290395,
+        "saturation_ratio": 0.06434937277663359,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00024.jpg",
+      "quality": {
+        "blur": 1736.149913018985,
+        "motion_blur": 0.3256071209907532,
+        "entropy": -55.65201844578237,
+        "brightness": 0.5844428539276123,
+        "contrast": 0.3187118172645569,
+        "edge_density": 0.13769893278412285,
+        "saturation_ratio": 0.0409342819696686,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00025.jpg",
+      "quality": {
+        "blur": 298.86856406534037,
+        "motion_blur": 0.18478722870349884,
+        "entropy": -38.18865207834392,
+        "brightness": 0.5548294186592102,
+        "contrast": 0.2994624674320221,
+        "edge_density": 0.07978468451600823,
+        "saturation_ratio": 0.0209492604381202,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00027.jpg",
+      "quality": {
+        "blur": 1754.5730909105046,
+        "motion_blur": 0.34091103076934814,
+        "entropy": -80.85174135521353,
+        "brightness": 0.47024402022361755,
+        "contrast": 0.2511885464191437,
+        "edge_density": 0.16224864257629656,
+        "saturation_ratio": 0.04325594457966673,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00028.jpg",
+      "quality": {
+        "blur": 1590.1844550106762,
+        "motion_blur": 0.3436822295188904,
+        "entropy": -135.51903472137465,
+        "brightness": 0.40942129492759705,
+        "contrast": 0.22716635465621948,
+        "edge_density": 0.16786556824564688,
+        "saturation_ratio": 0.05483430069275417,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00030.jpg",
+      "quality": {
+        "blur": 2030.0330740214292,
+        "motion_blur": 0.36139392852783203,
+        "entropy": -108.35734601280006,
+        "brightness": 0.6446570754051208,
+        "contrast": 0.30742380023002625,
+        "edge_density": 0.15372776633589216,
+        "saturation_ratio": 0.15229357798165138,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00034.jpg",
+      "quality": {
+        "blur": 966.7553092064787,
+        "motion_blur": 0.2537789046764374,
+        "entropy": -82.87478478700405,
+        "brightness": 0.46435362100601196,
+        "contrast": 0.2312571257352829,
+        "edge_density": 0.13670099232353491,
+        "saturation_ratio": 0.03894963489983149,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00036.jpg",
+      "quality": {
+        "blur": 644.5472700983737,
+        "motion_blur": 0.20763301849365234,
+        "entropy": -127.43354610595641,
+        "brightness": 0.3857915997505188,
+        "contrast": 0.2025034874677658,
+        "edge_density": 0.11674218311177682,
+        "saturation_ratio": 0.043933720277101664,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00037.jpg",
+      "quality": {
+        "blur": 4325.812680929317,
+        "motion_blur": 0.37787124514579773,
+        "entropy": -56.972182325820995,
+        "brightness": 0.4548465609550476,
+        "contrast": 0.2318720668554306,
+        "edge_density": 0.311726268489047,
+        "saturation_ratio": 0.025212507021157085,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00038.jpg",
+      "quality": {
+        "blur": 4429.15802361906,
+        "motion_blur": 0.38588961958885193,
+        "entropy": -63.86286984344389,
+        "brightness": 0.4515516757965088,
+        "contrast": 0.22755782306194305,
+        "edge_density": 0.30939524433626664,
+        "saturation_ratio": 0.026446358359857706,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00044.jpg",
+      "quality": {
+        "blur": 207.66723272609914,
+        "motion_blur": 0.131699800491333,
+        "entropy": -353.9479461878264,
+        "brightness": 0.2211129516363144,
+        "contrast": 0.11202313005924225,
+        "edge_density": 0.08527991012918928,
+        "saturation_ratio": 0.06563377644635836,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00048.jpg",
+      "quality": {
+        "blur": 335.08711404996683,
+        "motion_blur": 0.16524720191955566,
+        "entropy": -321.63553191811565,
+        "brightness": 0.2157800942659378,
+        "contrast": 0.11881741136312485,
+        "edge_density": 0.11214004868002246,
+        "saturation_ratio": 0.07955439056356488,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00049.jpg",
+      "quality": {
+        "blur": 4511.4537492140535,
+        "motion_blur": 0.4135681986808777,
+        "entropy": -91.6468205477388,
+        "brightness": 0.3834199607372284,
+        "contrast": 0.21375349164009094,
+        "edge_density": 0.3100112338513387,
+        "saturation_ratio": 0.035864070398801726,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00050.jpg",
+      "quality": {
+        "blur": 1312.0269927124255,
+        "motion_blur": 0.32770901918411255,
+        "entropy": -88.99524421797298,
+        "brightness": 0.4274435341358185,
+        "contrast": 0.23489108681678772,
+        "edge_density": 0.1757180303313986,
+        "saturation_ratio": 0.04649316607376896,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00054.jpg",
+      "quality": {
+        "blur": 407.52871296929317,
+        "motion_blur": 0.2233325093984604,
+        "entropy": -55.26835992893855,
+        "brightness": 0.4742147922515869,
+        "contrast": 0.24689945578575134,
+        "edge_density": 0.10134618985208763,
+        "saturation_ratio": 0.03458341134618985,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00055.jpg",
+      "quality": {
+        "blur": 1188.744781757369,
+        "motion_blur": 0.3062743842601776,
+        "entropy": -45.83978247923592,
+        "brightness": 0.484171599149704,
+        "contrast": 0.24835211038589478,
+        "edge_density": 0.15502153154839918,
+        "saturation_ratio": 0.032536978093989886,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00062.jpg",
+      "quality": {
+        "blur": 902.5699194694045,
+        "motion_blur": 0.23934951424598694,
+        "entropy": -67.14521181593048,
+        "brightness": 0.4056358337402344,
+        "contrast": 0.2457309365272522,
+        "edge_density": 0.12678899082568806,
+        "saturation_ratio": 0.01815577607189665,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00063.jpg",
+      "quality": {
+        "blur": 4111.881436813008,
+        "motion_blur": 0.3642130494117737,
+        "entropy": -58.98156201573492,
+        "brightness": 0.37634268403053284,
+        "contrast": 0.2381359189748764,
+        "edge_density": 0.2961261935967047,
+        "saturation_ratio": 0.0300112338513387,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00064.jpg",
+      "quality": {
+        "blur": 4057.7509656939687,
+        "motion_blur": 0.3670917749404907,
+        "entropy": -69.20734769326504,
+        "brightness": 0.3589887320995331,
+        "contrast": 0.23218780755996704,
+        "edge_density": 0.2944280097360045,
+        "saturation_ratio": 0.03398240029956937,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00065.jpg",
+      "quality": {
+        "blur": 874.428692790918,
+        "motion_blur": 0.25104615092277527,
+        "entropy": -89.7947841758249,
+        "brightness": 0.36212190985679626,
+        "contrast": 0.2244967371225357,
+        "edge_density": 0.12814079760344504,
+        "saturation_ratio": 0.04056918180116083,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00070.jpg",
+      "quality": {
+        "blur": 191.26340014858226,
+        "motion_blur": 0.22675693035125732,
+        "entropy": -78.56546910513534,
+        "brightness": 0.363714337348938,
+        "contrast": 0.2421003133058548,
+        "edge_density": 0.10084253885040254,
+        "saturation_ratio": 0.037839355925856584,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00072.jpg",
+      "quality": {
+        "blur": 734.1303182608171,
+        "motion_blur": 0.2908972501754761,
+        "entropy": -112.53089558013723,
+        "brightness": 0.3662053644657135,
+        "contrast": 0.20166511833667755,
+        "edge_density": 0.15478374836173,
+        "saturation_ratio": 0.027131623291518442,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00073.jpg",
+      "quality": {
+        "blur": 636.2488012082996,
+        "motion_blur": 0.2555544674396515,
+        "entropy": -140.70510752937227,
+        "brightness": 0.3543192744255066,
+        "contrast": 0.18666507303714752,
+        "edge_density": 0.13220183486238532,
+        "saturation_ratio": 0.031531548399176185,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00074.jpg",
+      "quality": {
+        "blur": 669.0104938504111,
+        "motion_blur": 0.2554279565811157,
+        "entropy": -128.98300519228266,
+        "brightness": 0.36849451065063477,
+        "contrast": 0.191669300198555,
+        "edge_density": 0.13423328964613368,
+        "saturation_ratio": 0.02888597640891219,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00076.jpg",
+      "quality": {
+        "blur": 689.3359081216197,
+        "motion_blur": 0.251863956451416,
+        "entropy": -102.18425388024575,
+        "brightness": 0.40332460403442383,
+        "contrast": 0.21024537086486816,
+        "edge_density": 0.12336079385882794,
+        "saturation_ratio": 0.032435873431941584,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00077.jpg",
+      "quality": {
+        "blur": 4016.922941709844,
+        "motion_blur": 0.3742384910583496,
+        "entropy": -72.055190455456,
+        "brightness": 0.43709784746170044,
+        "contrast": 0.22196032106876373,
+        "edge_density": 0.30800973600449355,
+        "saturation_ratio": 0.021398614491668227,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00078.jpg",
+      "quality": {
+        "blur": 709.0250011272062,
+        "motion_blur": 0.24208922684192657,
+        "entropy": -86.03774071488436,
+        "brightness": 0.46688950061798096,
+        "contrast": 0.22041240334510803,
+        "edge_density": 0.11747612806590527,
+        "saturation_ratio": 0.022001497846845162,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00079.jpg",
+      "quality": {
+        "blur": 920.0461921697957,
+        "motion_blur": 0.2669442892074585,
+        "entropy": -67.79647562701257,
+        "brightness": 0.5261070132255554,
+        "contrast": 0.23790746927261353,
+        "edge_density": 0.1238344879236098,
+        "saturation_ratio": 0.02073020033701554,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00081.jpg",
+      "quality": {
+        "blur": 162.46580947659808,
+        "motion_blur": 0.170194610953331,
+        "entropy": -80.80916687660132,
+        "brightness": 0.5677307844161987,
+        "contrast": 0.23553763329982758,
+        "edge_density": 0.06431941583973039,
+        "saturation_ratio": 0.012574424265118891,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00083.jpg",
+      "quality": {
+        "blur": 569.2660330011614,
+        "motion_blur": 0.22957059741020203,
+        "entropy": -57.44764208848834,
+        "brightness": 0.4808570146560669,
+        "contrast": 0.24307118356227875,
+        "edge_density": 0.10691630780752669,
+        "saturation_ratio": 0.022074517880546714,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00084.jpg",
+      "quality": {
+        "blur": 424.3989231151443,
+        "motion_blur": 0.19637040793895721,
+        "entropy": -94.2742549421536,
+        "brightness": 0.3957529366016388,
+        "contrast": 0.22340932488441467,
+        "edge_density": 0.09444111589589965,
+        "saturation_ratio": 0.02309305373525557,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00086.jpg",
+      "quality": {
+        "blur": 107.44114397062486,
+        "motion_blur": 0.13149292767047882,
+        "entropy": -159.33238825351324,
+        "brightness": 0.31239134073257446,
+        "contrast": 0.18996666371822357,
+        "edge_density": 0.04891031642014604,
+        "saturation_ratio": 0.018150159146227297,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00088.jpg",
+      "quality": {
+        "blur": 674.6406039976787,
+        "motion_blur": 0.2628159821033478,
+        "entropy": -106.39744240115115,
+        "brightness": 0.3534298241138458,
+        "contrast": 0.2091885507106781,
+        "edge_density": 0.12434562815952069,
+        "saturation_ratio": 0.022847781314360608,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00090.jpg",
+      "quality": {
+        "blur": 4421.6397396943385,
+        "motion_blur": 0.46917328238487244,
+        "entropy": -28.00698757935705,
+        "brightness": 0.4780021905899048,
+        "contrast": 0.2513415813446045,
+        "edge_density": 0.31635461524059166,
+        "saturation_ratio": 0.016403295263059354,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00093.jpg",
+      "quality": {
+        "blur": 1375.6694361910374,
+        "motion_blur": 0.3353270888328552,
+        "entropy": -42.09293604250089,
+        "brightness": 0.47992220520973206,
+        "contrast": 0.2740897238254547,
+        "edge_density": 0.16718592023965548,
+        "saturation_ratio": 0.01674592772888972,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00100.jpg",
+      "quality": {
+        "blur": 495.21383711348494,
+        "motion_blur": 0.14742667973041534,
+        "entropy": -213.28907198548671,
+        "brightness": 0.27222561836242676,
+        "contrast": 0.19024084508419037,
+        "edge_density": 0.07997940460587905,
+        "saturation_ratio": 0.014748174499157461,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00102.jpg",
+      "quality": {
+        "blur": 557.4215352827941,
+        "motion_blur": 0.1657034009695053,
+        "entropy": -201.8537307926347,
+        "brightness": 0.2723751366138458,
+        "contrast": 0.20157112181186676,
+        "edge_density": 0.09298820445609436,
+        "saturation_ratio": 0.018846657929226737,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00103.jpg",
+      "quality": {
+        "blur": 3362.6516993478267,
+        "motion_blur": 0.3092048168182373,
+        "entropy": -163.31724969850615,
+        "brightness": 0.2614954710006714,
+        "contrast": 0.20206883549690247,
+        "edge_density": 0.26458341134618985,
+        "saturation_ratio": 0.05249017038007864,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00105.jpg",
+      "quality": {
+        "blur": 721.139650483202,
+        "motion_blur": 0.20764045417308807,
+        "entropy": -111.61068424241617,
+        "brightness": 0.3500339686870575,
+        "contrast": 0.2479792684316635,
+        "edge_density": 0.10434001123385134,
+        "saturation_ratio": 0.011535293016289085,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00106.jpg",
+      "quality": {
+        "blur": 3843.332471937075,
+        "motion_blur": 0.35581186413764954,
+        "entropy": -88.00542828510365,
+        "brightness": 0.33308306336402893,
+        "contrast": 0.23751410841941833,
+        "edge_density": 0.29463021906010106,
+        "saturation_ratio": 0.031138363602321664,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00107.jpg",
+      "quality": {
+        "blur": 847.8870422965406,
+        "motion_blur": 0.2608032524585724,
+        "entropy": -61.01090953610317,
+        "brightness": 0.39249053597450256,
+        "contrast": 0.2660267651081085,
+        "edge_density": 0.1183036884478562,
+        "saturation_ratio": 0.01694626474442988,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00108.jpg",
+      "quality": {
+        "blur": 996.2790763951145,
+        "motion_blur": 0.285358726978302,
+        "entropy": -39.53721860465608,
+        "brightness": 0.4488540291786194,
+        "contrast": 0.2970869541168213,
+        "edge_density": 0.12769144354989703,
+        "saturation_ratio": 0.026444486051301255,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00109.jpg",
+      "quality": {
+        "blur": 1052.9575583411342,
+        "motion_blur": 0.2740090489387512,
+        "entropy": -84.95454074512075,
+        "brightness": 0.4385717511177063,
+        "contrast": 0.3349887728691101,
+        "edge_density": 0.1378824190226549,
+        "saturation_ratio": 0.1035049616176746,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00112.jpg",
+      "quality": {
+        "blur": 1655.0086030291995,
+        "motion_blur": 0.3658192455768585,
+        "entropy": -150.88844206676802,
+        "brightness": 0.586908221244812,
+        "contrast": 0.32743772864341736,
+        "edge_density": 0.19005429694813705,
+        "saturation_ratio": 0.2203407601572739,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00114.jpg",
+      "quality": {
+        "blur": 1536.0891181283112,
+        "motion_blur": 0.36342108249664307,
+        "entropy": -114.8476230965819,
+        "brightness": 0.5623208284378052,
+        "contrast": 0.29949048161506653,
+        "edge_density": 0.20078636959370905,
+        "saturation_ratio": 0.16611495974536603,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00116.jpg",
+      "quality": {
+        "blur": 180.44070554692712,
+        "motion_blur": 0.1731811910867691,
+        "entropy": -135.25787600325316,
+        "brightness": 0.5337777733802795,
+        "contrast": 0.3017551004886627,
+        "edge_density": 0.07924358734319416,
+        "saturation_ratio": 0.1303145478374836,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00117.jpg",
+      "quality": {
+        "blur": 1389.073364892153,
+        "motion_blur": 0.30914077162742615,
+        "entropy": -167.51763455193262,
+        "brightness": 0.5413523316383362,
+        "contrast": 0.3241656720638275,
+        "edge_density": 0.16903388878487174,
+        "saturation_ratio": 0.15318666916307808,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00119.jpg",
+      "quality": {
+        "blur": 1472.2704945727203,
+        "motion_blur": 0.2962808310985565,
+        "entropy": -220.04440750724467,
+        "brightness": 0.5288770198822021,
+        "contrast": 0.3476911187171936,
+        "edge_density": 0.16277850589777193,
+        "saturation_ratio": 0.24347313237221493,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00120.jpg",
+      "quality": {
+        "blur": 1507.854906028146,
+        "motion_blur": 0.29675865173339844,
+        "entropy": -270.5935514073906,
+        "brightness": 0.45901286602020264,
+        "contrast": 0.3385739028453827,
+        "edge_density": 0.1614192098857892,
+        "saturation_ratio": 0.28613742744804344,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00123.jpg",
+      "quality": {
+        "blur": 987.7163855437165,
+        "motion_blur": 0.27904748916625977,
+        "entropy": -192.29921629871882,
+        "brightness": 0.4562864899635315,
+        "contrast": 0.28726455569267273,
+        "edge_density": 0.16905635648754916,
+        "saturation_ratio": 0.21300692754165887,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00124.jpg",
+      "quality": {
+        "blur": 828.8607726741529,
+        "motion_blur": 0.2794439494609833,
+        "entropy": -133.55034340351625,
+        "brightness": 0.49247175455093384,
+        "contrast": 0.24242517352104187,
+        "edge_density": 0.17785620670286462,
+        "saturation_ratio": 0.0963564875491481,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00126.jpg",
+      "quality": {
+        "blur": 869.1966548252785,
+        "motion_blur": 0.2815004587173462,
+        "entropy": -168.12171997772356,
+        "brightness": 0.5161455273628235,
+        "contrast": 0.24810409545898438,
+        "edge_density": 0.1867159707919865,
+        "saturation_ratio": 0.12221681333083692,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00127.jpg",
+      "quality": {
+        "blur": 733.0905188085156,
+        "motion_blur": 0.2646922171115875,
+        "entropy": -178.46553972947606,
+        "brightness": 0.4375423192977905,
+        "contrast": 0.19630305469036102,
+        "edge_density": 0.19038756787118516,
+        "saturation_ratio": 0.0001928477813143606,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00129.jpg",
+      "quality": {
+        "blur": 294.9064181249704,
+        "motion_blur": 0.15027591586112976,
+        "entropy": -396.68911818983554,
+        "brightness": 0.1920744776725769,
+        "contrast": 0.12848055362701416,
+        "edge_density": 0.0964313798914061,
+        "saturation_ratio": 0.004993446920052424,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00130.jpg",
+      "quality": {
+        "blur": 1849.6717185102787,
+        "motion_blur": 0.33800047636032104,
+        "entropy": -151.33724074119948,
+        "brightness": 0.40749821066856384,
+        "contrast": 0.28929027915000916,
+        "edge_density": 0.17261935967047368,
+        "saturation_ratio": 0.09408724957873058,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00132.jpg",
+      "quality": {
+        "blur": 280.159109805572,
+        "motion_blur": 0.19136276841163635,
+        "entropy": -120.37208147802465,
+        "brightness": 0.5156649947166443,
+        "contrast": 0.25189727544784546,
+        "edge_density": 0.08836173001310615,
+        "saturation_ratio": 0.07527803782063285,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00133.jpg",
+      "quality": {
+        "blur": 1375.0748037945636,
+        "motion_blur": 0.3428071141242981,
+        "entropy": -133.68432455773132,
+        "brightness": 0.536438524723053,
+        "contrast": 0.25247922539711,
+        "edge_density": 0.202533233476877,
+        "saturation_ratio": 0.10226736566186108,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00136.jpg",
+      "quality": {
+        "blur": 1593.4853683864226,
+        "motion_blur": 0.35438528656959534,
+        "entropy": -139.54466824956498,
+        "brightness": 0.5633456110954285,
+        "contrast": 0.25442975759506226,
+        "edge_density": 0.2063265306122449,
+        "saturation_ratio": 0.12556262872121327,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00137.jpg",
+      "quality": {
+        "blur": 1663.2730957107624,
+        "motion_blur": 0.3465668559074402,
+        "entropy": -184.14345996713377,
+        "brightness": 0.5464223623275757,
+        "contrast": 0.2826938033103943,
+        "edge_density": 0.19396180490544843,
+        "saturation_ratio": 0.19191537165324846,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00138.jpg",
+      "quality": {
+        "blur": 1697.920399087551,
+        "motion_blur": 0.36573708057403564,
+        "entropy": -140.92374160364307,
+        "brightness": 0.5729745626449585,
+        "contrast": 0.2508399486541748,
+        "edge_density": 0.20949260438120204,
+        "saturation_ratio": 0.1208743680958622,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00139.jpg",
+      "quality": {
+        "blur": 331.6250478583276,
+        "motion_blur": 0.21422040462493896,
+        "entropy": -131.27742659173197,
+        "brightness": 0.5606805086135864,
+        "contrast": 0.23757731914520264,
+        "edge_density": 0.09849466392061412,
+        "saturation_ratio": 0.09101104662048305,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00141.jpg",
+      "quality": {
+        "blur": 2289.628720527095,
+        "motion_blur": 0.3869521915912628,
+        "entropy": -243.67364046798207,
+        "brightness": 0.7064252495765686,
+        "contrast": 0.24148863554000854,
+        "edge_density": 0.21073768957124134,
+        "saturation_ratio": 0.24753791424826813,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00142.jpg",
+      "quality": {
+        "blur": 2262.393884182866,
+        "motion_blur": 0.42784279584884644,
+        "entropy": -102.96541761289147,
+        "brightness": 0.556175708770752,
+        "contrast": 0.25612473487854004,
+        "edge_density": 0.23171690694626476,
+        "saturation_ratio": 0.09592960119827748,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00143.jpg",
+      "quality": {
+        "blur": 452.0933322659585,
+        "motion_blur": 0.24727186560630798,
+        "entropy": -84.84536509044665,
+        "brightness": 0.5291261076927185,
+        "contrast": 0.247816801071167,
+        "edge_density": 0.12048305560756413,
+        "saturation_ratio": 0.06437932971353678,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00145.jpg",
+      "quality": {
+        "blur": 2297.530591955201,
+        "motion_blur": 0.42164069414138794,
+        "entropy": -137.36710945186564,
+        "brightness": 0.5647938847541809,
+        "contrast": 0.2724899351596832,
+        "edge_density": 0.22172439618049056,
+        "saturation_ratio": 0.13791424826811458,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00148.jpg",
+      "quality": {
+        "blur": 1899.3490949406657,
+        "motion_blur": 0.3725488781929016,
+        "entropy": -231.85724321715114,
+        "brightness": 0.6120437383651733,
+        "contrast": 0.27745333313941956,
+        "edge_density": 0.19994944766897585,
+        "saturation_ratio": 0.21917992885227486,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00150.jpg",
+      "quality": {
+        "blur": 4526.934321041747,
+        "motion_blur": 0.4254165589809418,
+        "entropy": -117.31195280378779,
+        "brightness": 0.5938614010810852,
+        "contrast": 0.2829509973526001,
+        "edge_density": 0.27256506272233666,
+        "saturation_ratio": 0.09501965923984272,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00152.jpg",
+      "quality": {
+        "blur": 1558.6310273295385,
+        "motion_blur": 0.30460599064826965,
+        "entropy": -198.67871690779842,
+        "brightness": 0.5066092610359192,
+        "contrast": 0.328933984041214,
+        "edge_density": 0.172870249017038,
+        "saturation_ratio": 0.21705298633214754,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00153.jpg",
+      "quality": {
+        "blur": 1570.612285855542,
+        "motion_blur": 0.3112320899963379,
+        "entropy": -170.4684113010536,
+        "brightness": 0.48326054215431213,
+        "contrast": 0.3141101598739624,
+        "edge_density": 0.17868563939337204,
+        "saturation_ratio": 0.13434188354240778,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00155.jpg",
+      "quality": {
+        "blur": 1965.7151506841396,
+        "motion_blur": 0.355396568775177,
+        "entropy": -137.79997710901665,
+        "brightness": 0.49570411443710327,
+        "contrast": 0.30599305033683777,
+        "edge_density": 0.19394869874555326,
+        "saturation_ratio": 0.0030593521812394683,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00156.jpg",
+      "quality": {
+        "blur": 2492.022683184408,
+        "motion_blur": 0.39248964190483093,
+        "entropy": -119.05347716283008,
+        "brightness": 0.5517128705978394,
+        "contrast": 0.32226434350013733,
+        "edge_density": 0.20092866504399923,
+        "saturation_ratio": 0.08553641640142295,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00157.jpg",
+      "quality": {
+        "blur": 313.643763318727,
+        "motion_blur": 0.19058628380298615,
+        "entropy": -68.30832166820596,
+        "brightness": 0.5119699835777283,
+        "contrast": 0.30333033204078674,
+        "edge_density": 0.09377270174124697,
+        "saturation_ratio": 0.002669912001497847,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00163.jpg",
+      "quality": {
+        "blur": 2074.854802461895,
+        "motion_blur": 0.29339900612831116,
+        "entropy": -291.2031039678153,
+        "brightness": 0.5562263131141663,
+        "contrast": 0.37496447563171387,
+        "edge_density": 0.14678337390001872,
+        "saturation_ratio": 0.19610747051114025,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00165.jpg",
+      "quality": {
+        "blur": 5131.050797548671,
+        "motion_blur": 0.45400527119636536,
+        "entropy": -115.65817755196201,
+        "brightness": 0.6632128953933716,
+        "contrast": 0.29289257526397705,
+        "edge_density": 0.25995693690320165,
+        "saturation_ratio": 0.03417524808088373,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00167.jpg",
+      "quality": {
+        "blur": 4645.385797266525,
+        "motion_blur": 0.43185245990753174,
+        "entropy": -102.33338009986042,
+        "brightness": 0.6283293962478638,
+        "contrast": 0.31390371918678284,
+        "edge_density": 0.25522935779816514,
+        "saturation_ratio": 0.03621793671597079,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00168.jpg",
+      "quality": {
+        "blur": 1948.7485340933824,
+        "motion_blur": 0.34301501512527466,
+        "entropy": -91.7258553842249,
+        "brightness": 0.5892316699028015,
+        "contrast": 0.3166673183441162,
+        "edge_density": 0.16406478187605317,
+        "saturation_ratio": 0.014113461898520877,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00169.jpg",
+      "quality": {
+        "blur": 1794.7298953855916,
+        "motion_blur": 0.3324524760246277,
+        "entropy": -117.69817274855922,
+        "brightness": 0.5063002109527588,
+        "contrast": 0.34221065044403076,
+        "edge_density": 0.14865006553079949,
+        "saturation_ratio": 0.08383823254072272,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00173.jpg",
+      "quality": {
+        "blur": 2285.0006295971466,
+        "motion_blur": 0.46007829904556274,
+        "entropy": -117.52713267938852,
+        "brightness": 0.6254415512084961,
+        "contrast": 0.34270432591438293,
+        "edge_density": 0.1914491668226924,
+        "saturation_ratio": 0.14904512263621045,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00177.jpg",
+      "quality": {
+        "blur": 551.3427845213015,
+        "motion_blur": 0.21263469755649567,
+        "entropy": -230.92414435740955,
+        "brightness": 0.3933265209197998,
+        "contrast": 0.16676610708236694,
+        "edge_density": 0.0854970979217375,
+        "saturation_ratio": 0.02690881857330088,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00178.jpg",
+      "quality": {
+        "blur": 3893.9338366207076,
+        "motion_blur": 0.36277154088020325,
+        "entropy": -174.6767643687434,
+        "brightness": 0.39908066391944885,
+        "contrast": 0.18049152195453644,
+        "edge_density": 0.29839917618423517,
+        "saturation_ratio": 0.03040629095674967,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00180.jpg",
+      "quality": {
+        "blur": 3897.9889238474884,
+        "motion_blur": 0.39126133918762207,
+        "entropy": -138.20586353978143,
+        "brightness": 0.3597555458545685,
+        "contrast": 0.2117723524570465,
+        "edge_density": 0.28691818011608317,
+        "saturation_ratio": 0.05601759970043063,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00182.jpg",
+      "quality": {
+        "blur": 1484.7663619601724,
+        "motion_blur": 0.34989356994628906,
+        "entropy": -141.23057991529961,
+        "brightness": 0.6757133603096008,
+        "contrast": 0.3224642872810364,
+        "edge_density": 0.14415465268676278,
+        "saturation_ratio": 0.15393372027710167,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00185.jpg",
+      "quality": {
+        "blur": 825.2679776605826,
+        "motion_blur": 0.255894273519516,
+        "entropy": -141.32430626177535,
+        "brightness": 0.4177614152431488,
+        "contrast": 0.19122613966464996,
+        "edge_density": 0.1259183673469388,
+        "saturation_ratio": 0.03155027148474068,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00187.jpg",
+      "quality": {
+        "blur": 726.9347976562944,
+        "motion_blur": 0.23611654341220856,
+        "entropy": -173.05157172682232,
+        "brightness": 0.4629769027233124,
+        "contrast": 0.17693953216075897,
+        "edge_density": 0.11661673843849467,
+        "saturation_ratio": 0.01849091930350122,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00190.jpg",
+      "quality": {
+        "blur": 1181.0629773017909,
+        "motion_blur": 0.31020453572273254,
+        "entropy": -65.40300109452453,
+        "brightness": 0.49500128626823425,
+        "contrast": 0.2620321214199066,
+        "edge_density": 0.16877176558696874,
+        "saturation_ratio": 0.06505710541097173,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00191.jpg",
+      "quality": {
+        "blur": 1187.2603951121419,
+        "motion_blur": 0.3159981369972229,
+        "entropy": -72.3441456766767,
+        "brightness": 0.45621195435523987,
+        "contrast": 0.2589719891548157,
+        "edge_density": 0.17172439618049057,
+        "saturation_ratio": 0.07198277476128066,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00194.jpg",
+      "quality": {
+        "blur": 1554.5705333638514,
+        "motion_blur": 0.40577638149261475,
+        "entropy": -61.55265172609241,
+        "brightness": 0.5188845992088318,
+        "contrast": 0.3042515516281128,
+        "edge_density": 0.1698464706983711,
+        "saturation_ratio": 0.06552143793297135,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00196.jpg",
+      "quality": {
+        "blur": 1067.43653759794,
+        "motion_blur": 0.3323110342025757,
+        "entropy": -114.2664209836514,
+        "brightness": 0.39746955037117004,
+        "contrast": 0.23468096554279327,
+        "edge_density": 0.16490919303501217,
+        "saturation_ratio": 0.06360793858827934,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00199.jpg",
+      "quality": {
+        "blur": 109.24583482613802,
+        "motion_blur": 0.13228842616081238,
+        "entropy": -208.51661598959237,
+        "brightness": 0.40585771203041077,
+        "contrast": 0.15867707133293152,
+        "edge_density": 0.06042688635087062,
+        "saturation_ratio": 0.023714660175997004,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00200.jpg",
+      "quality": {
+        "blur": 949.043454327225,
+        "motion_blur": 0.2900142967700958,
+        "entropy": -101.0440622988053,
+        "brightness": 0.43118032813072205,
+        "contrast": 0.21591483056545258,
+        "edge_density": 0.14382138176371467,
+        "saturation_ratio": 0.03678524620857517,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00202.jpg",
+      "quality": {
+        "blur": 1490.1756879891739,
+        "motion_blur": 0.37732943892478943,
+        "entropy": -29.956312751012106,
+        "brightness": 0.5239956974983215,
+        "contrast": 0.256860613822937,
+        "edge_density": 0.18537539786556825,
+        "saturation_ratio": 0.022467702677401235,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00206.jpg",
+      "quality": {
+        "blur": 925.9774836953018,
+        "motion_blur": 0.26200175285339355,
+        "entropy": -112.01962623241569,
+        "brightness": 0.37903982400894165,
+        "contrast": 0.20619650185108185,
+        "edge_density": 0.12761842351619548,
+        "saturation_ratio": 0.03565624414903576,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00208.jpg",
+      "quality": {
+        "blur": 4068.447135357304,
+        "motion_blur": 0.3682737350463867,
+        "entropy": -93.16162672387364,
+        "brightness": 0.4226782023906708,
+        "contrast": 0.21142424643039703,
+        "edge_density": 0.31508144542220556,
+        "saturation_ratio": 0.019256693503089308,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00209.jpg",
+      "quality": {
+        "blur": 685.3703963080885,
+        "motion_blur": 0.25554925203323364,
+        "entropy": -91.64473440277877,
+        "brightness": 0.4281940162181854,
+        "contrast": 0.2211393564939499,
+        "edge_density": 0.12201460400674032,
+        "saturation_ratio": 0.020108593896274105,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00210.jpg",
+      "quality": {
+        "blur": 483.573775836433,
+        "motion_blur": 0.21672068536281586,
+        "entropy": -104.30503988345873,
+        "brightness": 0.3644426763057709,
+        "contrast": 0.22981493175029755,
+        "edge_density": 0.10068152031454784,
+        "saturation_ratio": 0.027929226736566184,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00212.jpg",
+      "quality": {
+        "blur": 545.1727828098448,
+        "motion_blur": 0.21806399524211884,
+        "entropy": -126.34925970780753,
+        "brightness": 0.334414541721344,
+        "contrast": 0.23405657708644867,
+        "edge_density": 0.10892903950571053,
+        "saturation_ratio": 0.028249391499719154,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00214.jpg",
+      "quality": {
+        "blur": 651.2549716569466,
+        "motion_blur": 0.22146274149417877,
+        "entropy": -130.07383736120684,
+        "brightness": 0.32176244258880615,
+        "contrast": 0.2415701001882553,
+        "edge_density": 0.11154839917618423,
+        "saturation_ratio": 0.028846657929226735,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00215.jpg",
+      "quality": {
+        "blur": 3855.656896148307,
+        "motion_blur": 0.3713556230068207,
+        "entropy": -85.91054633057082,
+        "brightness": 0.3403163254261017,
+        "contrast": 0.2514365017414093,
+        "edge_density": 0.2980715221868564,
+        "saturation_ratio": 0.03520501778693129,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00216.jpg",
+      "quality": {
+        "blur": 235.58603326714407,
+        "motion_blur": 0.13871192932128906,
+        "entropy": -338.96394145743494,
+        "brightness": 0.17450445890426636,
+        "contrast": 0.1410449594259262,
+        "edge_density": 0.0734637708294327,
+        "saturation_ratio": 0.06862947013667853,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00218.jpg",
+      "quality": {
+        "blur": 793.2768297765979,
+        "motion_blur": 0.24137336015701294,
+        "entropy": -229.92557371630147,
+        "brightness": 0.2738926410675049,
+        "contrast": 0.26321694254875183,
+        "edge_density": 0.11080883729638644,
+        "saturation_ratio": 0.16345253697809398,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00221.jpg",
+      "quality": {
+        "blur": 1148.5517904600456,
+        "motion_blur": 0.3135373294353485,
+        "entropy": -80.55189571292377,
+        "brightness": 0.5372954607009888,
+        "contrast": 0.30383536219596863,
+        "edge_density": 0.15674405542033326,
+        "saturation_ratio": 0.0698352368470324,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00222.jpg",
+      "quality": {
+        "blur": 1246.1142867944507,
+        "motion_blur": 0.32700464129447937,
+        "entropy": -43.68637102057249,
+        "brightness": 0.4838784337043762,
+        "contrast": 0.3042146563529968,
+        "edge_density": 0.16779442052050178,
+        "saturation_ratio": 0.04410597266429508,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00224.jpg",
+      "quality": {
+        "blur": 966.0093436358001,
+        "motion_blur": 0.30504050850868225,
+        "entropy": -79.65066151535378,
+        "brightness": 0.41024452447891235,
+        "contrast": 0.3012823164463043,
+        "edge_density": 0.16687324471072834,
+        "saturation_ratio": 0.05498595768582663,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00225.jpg",
+      "quality": {
+        "blur": 1145.367729728425,
+        "motion_blur": 0.32570356130599976,
+        "entropy": -97.70271062391765,
+        "brightness": 0.3656516969203949,
+        "contrast": 0.2739567160606384,
+        "edge_density": 0.16154465455907135,
+        "saturation_ratio": 0.056064407414341884,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00226.jpg",
+      "quality": {
+        "blur": 965.1172202788405,
+        "motion_blur": 0.3109312057495117,
+        "entropy": -132.978298662724,
+        "brightness": 0.3367164433002472,
+        "contrast": 0.22024847567081451,
+        "edge_density": 0.17523497472383448,
+        "saturation_ratio": 0.007753229732259876,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00227.jpg",
+      "quality": {
+        "blur": 1301.754317117608,
+        "motion_blur": 0.3583773374557495,
+        "entropy": -113.55854508880522,
+        "brightness": 0.3634524345397949,
+        "contrast": 0.24623611569404602,
+        "edge_density": 0.18840479310990452,
+        "saturation_ratio": 0.05584721962179367,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00231.jpg",
+      "quality": {
+        "blur": 304.69788486869004,
+        "motion_blur": 0.1452796310186386,
+        "entropy": -318.2173463219433,
+        "brightness": 0.5315854549407959,
+        "contrast": 0.307552307844162,
+        "edge_density": 0.08195469013293391,
+        "saturation_ratio": 0.1616925669350309,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00233.jpg",
+      "quality": {
+        "blur": 325.8363993935102,
+        "motion_blur": 0.1856425255537033,
+        "entropy": -223.5964137684642,
+        "brightness": 0.3964920938014984,
+        "contrast": 0.19641409814357758,
+        "edge_density": 0.11068152031454784,
+        "saturation_ratio": 0.04742183111776821,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00235.jpg",
+      "quality": {
+        "blur": 415.7615668335141,
+        "motion_blur": 0.20356790721416473,
+        "entropy": -148.5509856735404,
+        "brightness": 0.4347522556781769,
+        "contrast": 0.2042882740497589,
+        "edge_density": 0.11665980153529301,
+        "saturation_ratio": 0.045339824002995695,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00236.jpg",
+      "quality": {
+        "blur": 530.9697385755121,
+        "motion_blur": 0.2169446051120758,
+        "entropy": -134.17102024338197,
+        "brightness": 0.462668240070343,
+        "contrast": 0.224065363407135,
+        "edge_density": 0.12343194158397304,
+        "saturation_ratio": 0.06953941209511327,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00237.jpg",
+      "quality": {
+        "blur": 597.4852058564908,
+        "motion_blur": 0.22490741312503815,
+        "entropy": -144.9638989229283,
+        "brightness": 0.4810793101787567,
+        "contrast": 0.23256157338619232,
+        "edge_density": 0.1316663546152406,
+        "saturation_ratio": 0.08697247706422018,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00238.jpg",
+      "quality": {
+        "blur": 116.5826032864221,
+        "motion_blur": 0.12850923836231232,
+        "entropy": -151.6886970858793,
+        "brightness": 0.5013957619667053,
+        "contrast": 0.24420885741710663,
+        "edge_density": 0.04901329339075079,
+        "saturation_ratio": 0.10617487361917244,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00239.jpg",
+      "quality": {
+        "blur": 207.6806114738161,
+        "motion_blur": 0.13541552424430847,
+        "entropy": -361.82582759912873,
+        "brightness": 0.2775471806526184,
+        "contrast": 0.14844965934753418,
+        "edge_density": 0.09937464894214566,
+        "saturation_ratio": 0.0075547650252761655,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00241.jpg",
+      "quality": {
+        "blur": 639.9275974200037,
+        "motion_blur": 0.23738433420658112,
+        "entropy": -157.00690010055877,
+        "brightness": 0.45061054825782776,
+        "contrast": 0.27768686413764954,
+        "edge_density": 0.13669912001497847,
+        "saturation_ratio": 0.1259445796667291,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00242.jpg",
+      "quality": {
+        "blur": 479.0500560466716,
+        "motion_blur": 0.1872662603855133,
+        "entropy": -299.50776959853073,
+        "brightness": 0.32256820797920227,
+        "contrast": 0.25789445638656616,
+        "edge_density": 0.10131810522374086,
+        "saturation_ratio": 0.2346826436996817,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00244.jpg",
+      "quality": {
+        "blur": 858.8978944953816,
+        "motion_blur": 0.303528755903244,
+        "entropy": -140.95447924475437,
+        "brightness": 0.46081623435020447,
+        "contrast": 0.17939521372318268,
+        "edge_density": 0.1860868751170193,
+        "saturation_ratio": 0.006498782999438307,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00247.jpg",
+      "quality": {
+        "blur": 440.059808805431,
+        "motion_blur": 0.17836223542690277,
+        "entropy": -256.28296251339486,
+        "brightness": 0.5056393146514893,
+        "contrast": 0.26834145188331604,
+        "edge_density": 0.10752106347126006,
+        "saturation_ratio": 0.17673656618610747,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00252.jpg",
+      "quality": {
+        "blur": 859.3902633427755,
+        "motion_blur": 0.18263688683509827,
+        "entropy": -156.30434953455494,
+        "brightness": 0.3653073012828827,
+        "contrast": 0.33056724071502686,
+        "edge_density": 0.10725519565624414,
+        "saturation_ratio": 0.08201834862385321,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00256.jpg",
+      "quality": {
+        "blur": 151.59324495730442,
+        "motion_blur": 0.11596501618623734,
+        "entropy": -220.89631831230238,
+        "brightness": 0.46678799390792847,
+        "contrast": 0.3015472888946533,
+        "edge_density": 0.045206890095487735,
+        "saturation_ratio": 0.15207077326343382,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00258.jpg",
+      "quality": {
+        "blur": 247.52305914193295,
+        "motion_blur": 0.14033374190330505,
+        "entropy": -180.15172661651172,
+        "brightness": 0.47726184129714966,
+        "contrast": 0.3023665249347687,
+        "edge_density": 0.062218685639393374,
+        "saturation_ratio": 0.11219621793671597,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00259.jpg",
+      "quality": {
+        "blur": 334.9848814241821,
+        "motion_blur": 0.16269469261169434,
+        "entropy": -136.2417950284988,
+        "brightness": 0.3926454484462738,
+        "contrast": 0.30513185262680054,
+        "edge_density": 0.07596517506085003,
+        "saturation_ratio": 0.021853585470885603,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00260.jpg",
+      "quality": {
+        "blur": 653.3525401562017,
+        "motion_blur": 0.17407716810703278,
+        "entropy": -175.113787297692,
+        "brightness": 0.35874947905540466,
+        "contrast": 0.295852929353714,
+        "edge_density": 0.09682456468826063,
+        "saturation_ratio": 0.05177682082007115,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00261.jpg",
+      "quality": {
+        "blur": 610.7998989641305,
+        "motion_blur": 0.18436594307422638,
+        "entropy": -182.14611224497517,
+        "brightness": 0.3733062744140625,
+        "contrast": 0.2923925220966339,
+        "edge_density": 0.10187043624789364,
+        "saturation_ratio": 0.09853772701741247,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00266.jpg",
+      "quality": {
+        "blur": 455.2695212972872,
+        "motion_blur": 0.23878012597560883,
+        "entropy": -71.34160864100512,
+        "brightness": 0.5690184235572815,
+        "contrast": 0.23130837082862854,
+        "edge_density": 0.11801722523871934,
+        "saturation_ratio": 0.028056543718404794,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00270.jpg",
+      "quality": {
+        "blur": 415.41595182481376,
+        "motion_blur": 0.1443418264389038,
+        "entropy": -277.11448984247727,
+        "brightness": 0.5980146527290344,
+        "contrast": 0.29782891273498535,
+        "edge_density": 0.07521063471260064,
+        "saturation_ratio": 0.18421456656056917,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00275.jpg",
+      "quality": {
+        "blur": 2050.6324606399935,
+        "motion_blur": 0.3772149085998535,
+        "entropy": -175.81182140320607,
+        "brightness": 0.3337603509426117,
+        "contrast": 0.2893548607826233,
+        "edge_density": 0.20896274105972665,
+        "saturation_ratio": 0.10309118142669912,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00276.jpg",
+      "quality": {
+        "blur": 471.0992273121721,
+        "motion_blur": 0.267471581697464,
+        "entropy": -109.36651227388528,
+        "brightness": 0.5131174325942993,
+        "contrast": 0.28779178857803345,
+        "edge_density": 0.1404549709792174,
+        "saturation_ratio": 0.06941209511327467,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00277.jpg",
+      "quality": {
+        "blur": 2045.4475487185837,
+        "motion_blur": 0.3631049692630768,
+        "entropy": -289.82962853835704,
+        "brightness": 0.5065274238586426,
+        "contrast": 0.34079042077064514,
+        "edge_density": 0.17576483804530987,
+        "saturation_ratio": 0.3247331960307059,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00280.jpg",
+      "quality": {
+        "blur": 827.4147922902955,
+        "motion_blur": 0.23021262884140015,
+        "entropy": -93.45228500257846,
+        "brightness": 0.43270015716552734,
+        "contrast": 0.2645113170146942,
+        "edge_density": 0.11678337390001872,
+        "saturation_ratio": 0.005021531548399176,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00282.jpg",
+      "quality": {
+        "blur": 819.2280220867592,
+        "motion_blur": 0.22167056798934937,
+        "entropy": -81.7797892357998,
+        "brightness": 0.5128078460693359,
+        "contrast": 0.3075532019138336,
+        "edge_density": 0.08967234600262124,
+        "saturation_ratio": 0.010621606440741433,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00283.jpg",
+      "quality": {
+        "blur": 830.5665342730481,
+        "motion_blur": 0.2278239130973816,
+        "entropy": -91.87607551266198,
+        "brightness": 0.46075478196144104,
+        "contrast": 0.28322869539260864,
+        "edge_density": 0.09327466766523122,
+        "saturation_ratio": 0.017919865193783937,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00284.jpg",
+      "quality": {
+        "blur": 919.8613816178281,
+        "motion_blur": 0.2241024374961853,
+        "entropy": -288.0912495785259,
+        "brightness": 0.32132086157798767,
+        "contrast": 0.28839144110679626,
+        "edge_density": 0.0942894589028272,
+        "saturation_ratio": 0.23127878674405541,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00285.jpg",
+      "quality": {
+        "blur": 2566.573069881976,
+        "motion_blur": 0.4220336377620697,
+        "entropy": -75.40103668766663,
+        "brightness": 0.541381299495697,
+        "contrast": 0.3533550202846527,
+        "edge_density": 0.1572121325594458,
+        "saturation_ratio": 0.10774012357236473,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00291.jpg",
+      "quality": {
+        "blur": 1346.6288732010285,
+        "motion_blur": 0.2993212044239044,
+        "entropy": -135.10083004128523,
+        "brightness": 0.40402570366859436,
+        "contrast": 0.2354094535112381,
+        "edge_density": 0.14471260063658492,
+        "saturation_ratio": 0.04507021157086688,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00293.jpg",
+      "quality": {
+        "blur": 1186.1154823708002,
+        "motion_blur": 0.2697261571884155,
+        "entropy": -122.44158034254414,
+        "brightness": 0.43440985679626465,
+        "contrast": 0.24474988877773285,
+        "edge_density": 0.12245459651750609,
+        "saturation_ratio": 0.039981276914435496,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00294.jpg",
+      "quality": {
+        "blur": 1234.3667731208982,
+        "motion_blur": 0.27060332894325256,
+        "entropy": -109.49436777042749,
+        "brightness": 0.4466187059879303,
+        "contrast": 0.25208580493927,
+        "edge_density": 0.1226642950758285,
+        "saturation_ratio": 0.03588092117580977,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00295.jpg",
+      "quality": {
+        "blur": 314.4060260743103,
+        "motion_blur": 0.1813713163137436,
+        "entropy": -112.5893038464155,
+        "brightness": 0.45630979537963867,
+        "contrast": 0.2445635050535202,
+        "edge_density": 0.08793109904512263,
+        "saturation_ratio": 0.015854708856019473,
+        "low_texture_ratio": 0.0
+      }
+    },
+    {
+      "filename": "00297.jpg",
+      "quality": {
+        "blur": 5497.376012056237,
+        "motion_blur": 0.46891748905181885,
+        "entropy": -48.00750243482986,
+        "brightness": 0.543683648109436,
+        "contrast": 0.2654443085193634,
+        "edge_density": 0.3167983523684703,
+        "saturation_ratio": 0.020054296948137054,
+        "low_texture_ratio": 0.0
+      }
+    }
+  ]
+}

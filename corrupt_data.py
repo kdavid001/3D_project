@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 SUPPORTED_EXTS = (".png", ".jpg", ".jpeg")
 
-    
+
 # -------------------------
 # Corruption functions
 # -------------------------
@@ -63,11 +63,6 @@ def apply_exposure(img):
     factor = random.uniform(0.4, 1.8)
     return np.clip(img * factor, 0, 255).astype(np.uint8)
 
-
-# -------------------------
-# Main pipeline
-# -------------------------
-
 def corrupt_image(img):
     h, w, _ = img.shape
     mask = random_mask(h, w)
@@ -95,11 +90,14 @@ def copy_if_exists(src, dst):
         shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
+# -------------------------
+# Main pipeline
+# -------------------------
 def main(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    # Try "images/" subfolder, fallback to the folder itself
+    # Tries "images/" subfolder, fallback to the folder itself
     potential_dir = os.path.join(args.clean_dir, "images")
     if os.path.exists(potential_dir):
         clean_images = potential_dir
@@ -146,12 +144,12 @@ def main(args):
             continue
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        # Step 1: Randomly delete image
+        # Randomly delete image
         if random.random() < args.delete_prob:
             # print(f"Skipping image (deleted): {fname}")
             continue
 
-        # Step 2: Randomly decide whether to corrupt
+        # Randomly decide whether to corrupt
         if random.random() > args.corrupt_prob:
             # Keep image as-is
             Image.fromarray(img).save(dst_path)
@@ -159,7 +157,7 @@ def main(args):
             Image.fromarray(empty_mask).save(mask_path)
             continue
 
-        # Step 3: Apply corruption
+        # Apply corruption
         corrupted, mask = corrupt_image(img)
         Image.fromarray(corrupted).save(dst_path)
         Image.fromarray(mask).save(mask_path)
