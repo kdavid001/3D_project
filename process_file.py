@@ -24,6 +24,7 @@ import numpy as np
 from tqdm import tqdm
 import struct
 import cv2
+import math
 
 # supported file types
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png"}
@@ -183,9 +184,10 @@ def laplacian_variance(gray):
 
 
 def image_entropy(gray):
-    hist = np.histogram(gray, bins=256, range=(0, 1), density=True)[0]
-    hist = hist[hist > 0]
-    return -np.sum(hist * np.log2(hist))
+    hist = np.histogram(gray, bins=256, range=(0, 1))[0]
+    prob = hist / (hist.sum() + 1e-8)
+    prob = prob[prob > 0]
+    return float(-np.sum(prob * np.log2(prob)))
 
 
 def edge_density(gray):
@@ -203,11 +205,13 @@ def motion_blur_score(gray):
     mag = np.sqrt(sobelx ** 2 + sobely ** 2)
     return float(mag.mean())
 
+
 # For black holes, this part doesn't matter for real-life sinerios
 def low_texture_ratio(gray, thresh=0.01):
     return np.mean(gray.std(axis=0) < thresh)
-# End of Quality metric functions
 
+
+# End of Quality metric functions
 
 
 def compute_dataset_stats(metrics_list):
@@ -219,6 +223,7 @@ def compute_dataset_stats(metrics_list):
             "std": float(values.std() + 1e-6),
         }
     return stats
+
 
 def compute_quality_metrics(img_rgb):
     gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
@@ -234,6 +239,7 @@ def compute_quality_metrics(img_rgb):
         "low_texture_ratio": low_texture_ratio(gray),
     }
 
+
 def screen_image(metrics, dataset_stats, z_thresh, min_flags):
     flags = []
     STRUCTURAL_KEYS = {
@@ -241,7 +247,8 @@ def screen_image(metrics, dataset_stats, z_thresh, min_flags):
         "motion_blur",
         "edge_density",
         "entropy",
-        "saturation_ratio"
+        "saturation_ratio",
+        "low_texture_ratio",
     }
     for k, v in metrics.items():
         z = abs(v - dataset_stats[k]["mean"]) / dataset_stats[k]["std"]
@@ -253,12 +260,8 @@ def screen_image(metrics, dataset_stats, z_thresh, min_flags):
     # --- semantic decision logic ---
     needs_diffusion = False
     is_blurry = False
-    # Rule 1: multiple structural anomalies only
-    if len(structural_flags) >= min_flags:
-        needs_diffusion = True
 
-    # Rule 1: multiple independent anomalies
-    if len(flags) >= min_flags:
+    if len(structural_flags) >= min_flags:
         needs_diffusion = True
 
     # --- semantic blur detection ---
@@ -270,7 +273,7 @@ def screen_image(metrics, dataset_stats, z_thresh, min_flags):
             "entropy" in flags
     ):
         is_blurry = True
-        flags.append("Confirmed little blur")
+        flags.append("confirmed_defocus_blur")
 
     # Case 2: Motion blur (edges exist but smeared) also checks for information destruction
     if (
@@ -279,7 +282,7 @@ def screen_image(metrics, dataset_stats, z_thresh, min_flags):
             "entropy" in flags
     ):
         is_blurry = True
-        flags.append("Confirmed motion_blur and information loss")
+        flags.append("confirmed_motion_blur")
 
     if is_blurry:
         needs_diffusion = True
@@ -343,9 +346,6 @@ def process_func(args):
             manifest["images"].append(entry)
             quality_list.append(quality)
 
-            with open(os.path.join(out_dir, "manifest.json"), "w") as f:
-                json.dump(manifest, f, indent=2)
-
         except Exception as e:
             print(f"Error processing {base}: {e}")
             continue
@@ -359,19 +359,33 @@ def process_func(args):
         decision = screen_image(
             entry["quality"],
             dataset_stats,
-            z_thresh=1.5,
+            z_thresh=1.5,  # 2 is recommended, but detection works better with 1.5.
             min_flags=2
         )
         entry["screening"] = decision
+        # print(entry["filename"], decision["needs_diffusion"], decision["flags"])
 
-        # Each image will have
-        # {
-        #   "quality": {...},
-        #   "screening": {
-        #     "needs_diffusion": true,
-        #     "flags": ["blur", "entropy"]
-        #   }
-        # }
+        # --- mask generation ---
+        mask_dir = os.path.join(out_dir, "masks")
+        ensure_dir(mask_dir)
+
+        if decision["needs_diffusion"]:
+            # reload processed image to generate mask
+            img_path = os.path.join(images_out_dir, entry["filename"])
+            img_rgb = np.array(Image.open(img_path).convert("RGB"))
+
+            mask = generate_repair_mask(
+                img_rgb,
+                decision["flags"]
+            )
+
+            mask_name = entry["filename"].rsplit(".", 1)[0] + ".png"
+            mask_path = os.path.join(mask_dir, mask_name)
+            Image.fromarray(mask).save(mask_path)
+
+            entry["mask_path"] = f"masks/{mask_name}"
+        else:
+            entry["mask_path"] = None
 
     num_flagged = sum(
         1 for e in manifest["images"]
@@ -379,27 +393,54 @@ def process_func(args):
     )
 
     print(f"{num_flagged} / {len(manifest['images'])} images flagged for diffusion")
+    # Save the manifest with updated screening and mask info
+    with open(os.path.join(out_dir, "manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2)
+
     return manifest
 
 
-# def run_diffusion(filename):
-#     input_path = os.path.join(out_dir, "images", filename)
-#     output_path = input_path  # overwrite in-place (or temp first)
-#
-#     img = Image.open(input_path).convert("RGB")
-#
-#     repaired = diffusion_model(
-#         image=img,
-#         mask=load_mask(filename)
-#     )
-#
-#     repaired.save(output_path)
+# For mask generation
+def blur_mask(gray):
+    edges = cv2.Canny((gray * 255).astype(np.uint8), 50, 150)
+    return (edges == 0).astype(np.uint8) * 255
 
-def run_diffusion(dataset):
-    print(f"Running diffusion for {dataset}")
-    print(f"diffusion model not set yet passing......")
-    # image = ("output from the diffusion model")
-    # return image
+
+def saturation_mask(gray, low=0.02, high=0.98):
+    mask = (gray < low) | (gray > high)
+    return (mask.astype(np.uint8)) * 255
+
+
+def low_texture_mask(gray, thresh=0.01):
+    mean = cv2.GaussianBlur(gray, (15, 15), 0)
+    sq_mean = cv2.GaussianBlur(gray**2, (15, 15), 0)
+    local_var = sq_mean - mean**2
+    return (local_var < thresh).astype(np.uint8) * 255
+
+
+def postprocess_mask(mask, dilate_iters=2):
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=dilate_iters)
+    return mask
+
+
+def generate_repair_mask(img_rgb, flags):
+    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+    masks = []
+
+    if "confirmed_blur" in flags:
+        masks.append(blur_mask(gray))
+
+    if "missing_region" in flags:
+        masks.append(saturation_mask(gray))
+        masks.append(low_texture_mask(gray))
+
+    if not masks:
+        return np.zeros_like(gray, dtype=np.uint8)
+
+    final_mask = np.maximum.reduce(masks)
+    final_mask = postprocess_mask(final_mask)
+    return final_mask.astype(np.uint8)
 
 
 def skip(entry):
@@ -408,11 +449,10 @@ def skip(entry):
 
 def main(args):
     manifest = process_func(args)
-
     for entry in manifest["images"]:
+        # print(entry["filename"], entry["screening"], entry.get("mask_path"))
         if entry["screening"]["needs_diffusion"]:
-            run_diffusion(entry["filename"])
-
+            print(f"will run diffusion for {entry['filename']}")
         else:
             skip(entry)
 
@@ -424,6 +464,7 @@ if __name__ == "__main__":
     # parser.add_argument("----use_colmap_metadata", default=1, type=int, help="Whether to use colmap metadata"
     #                                                                          "use '0'->False, '1'->True this accepts "
     #                                                                          "integers only")
+
     parser.add_argument("--target_size", type=int, default=None,
                         help="If set, resize images to this square size (e.g. 1024). Use resize_mode to control"
                              " strategy.")

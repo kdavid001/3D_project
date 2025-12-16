@@ -3,6 +3,10 @@
 
 1. Use this to activate the right environemt
 ```
+conda deavtivate
+```
+
+```
 source nsenv/bin/activate
 ```
 2. Install the reuirement.txt file

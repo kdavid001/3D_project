@@ -1,4 +1,14 @@
 Pillow
 numpy
 tqdm
+scipy
+matplotlib
+scikit-image
 opencv-python
+diffusers
+transformers
+accelerate
+safetensors
+torch
+torchvision
+xformers
