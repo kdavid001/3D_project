@@ -3,7 +3,10 @@ import json
 import os
 from PIL import Image
 import torch
-from diffusers import StableDiffusionInpaintPipeline
+from diffusers import (
+    StableDiffusionInpaintPipeline,
+    StableDiffusionImg2ImgPipeline
+)
 from tqdm import tqdm
 import argparse
 
@@ -28,58 +31,79 @@ def main_prog(DATASET_DIR):
     MASK_DIR = os.path.join(DATASET_DIR, "masks")
     MANIFEST_PATH = os.path.join(DATASET_DIR, "manifest.json")
 
-    MODEL_ID = "runwayml/stable-diffusion-inpainting"
-    DEVICE = "cuda"
+    MODEL_INPAINT = "runwayml/stable-diffusion-inpainting"
+    MODEL_IMG2IMG = "runwayml/stable-diffusion-v1-5"
 
-    # ----------------------------
-    # Load pipeline
-    # ----------------------------
-    pipe = StableDiffusionInpaintPipeline.from_pretrained(
-        MODEL_ID,
+    pipe_inpaint = StableDiffusionInpaintPipeline.from_pretrained(
+        MODEL_INPAINT,
         torch_dtype=torch.float16,
         safety_checker=None
     ).to(DEVICE)
 
-    try:
-        pipe.enable_xformers_memory_efficient_attention()
-    except Exception:
-        pass
+    pipe_img2img = StableDiffusionImg2ImgPipeline.from_pretrained(
+        MODEL_IMG2IMG,
+        torch_dtype=torch.float16,
+        safety_checker=None
+    ).to(DEVICE)
+
+    for pipe in [pipe_inpaint, pipe_img2img]:
+        try:
+            pipe.enable_xformers_memory_efficient_attention()
+        except Exception:
+            pass
     # ----------------------------
     # Load manifest
     # ----------------------------
     with open(MANIFEST_PATH, "r") as f:
         manifest = json.load(f)
 
-        # ----------------------------
-        # Diffusion loop
-        # ----------------------------
         for entry in tqdm(manifest["images"]):
-            if not entry["screening"]["needs_diffusion"]:
+
+            decision = entry["screening"]["decision"]
+
+            if decision == "NONE":
                 continue
 
             image_path = os.path.join(OUT_IMAGES_DIR, entry["filename"])
-            mask_path = os.path.join(DATASET_DIR, entry["mask_path"])
-
             image = Image.open(image_path).convert("RGB")
-            mask = Image.open(mask_path).convert("L")
-
-            # Resize to 512 for diffusion (optional but recommended)
             image = resize_to_multiple_of_8(image)
-            mask = resize_to_multiple_of_8(mask)
 
             with torch.no_grad():
-                result = pipe(
-                    prompt="photorealistic, same scene, same lighting, no new objects",
-                    image=image,
-                    mask_image=mask,
-                    guidance_scale=7.5,
-                    num_inference_steps=30,
-                    generator=generator
-                ).images[0]
 
-            # 🔁 Overwrite original image
-            result.save(image_path)
+                # -----------------------
+                # REPAIR (INPAINT)
+                # -----------------------
+                if decision == "REPAIR":
+                    mask_path = os.path.join(DATASET_DIR, entry["diffusion"]["mask_path"])
+                    mask = Image.open(mask_path).convert("L")
+                    mask = resize_to_multiple_of_8(mask)
 
+                    result = pipe_inpaint(
+                        prompt="photorealistic repair, same scene, same geometry, same lighting",
+                        image=image,
+                        mask_image=mask,
+                        guidance_scale=7.5,
+                        num_inference_steps=30,
+                        generator=generator
+                    ).images[0]
+
+                # -----------------------
+                # NOVEL VIEW (IMG2IMG)
+                # -----------------------
+                elif decision == "NOVEL_VIEW":
+                    result = pipe_img2img(
+                        prompt="same scene, slightly different camera angle, photorealistic",
+                        image=image,
+                        strength=0.35,  # IMPORTANT: low strength preserves geometry
+                        guidance_scale=7.5,
+                        num_inference_steps=30,
+                        generator=generator
+                    ).images[0]
+
+                else:
+                    continue
+
+            result.save(image_path)  # 🔁 Overwrite or save copy
         print("✔ Diffusion repair completed")
 
 

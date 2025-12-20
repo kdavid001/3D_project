@@ -106,60 +106,6 @@ def resize_image(img: Image.Image, target_size, mode="pad"):
         raise ValueError("Unknown resize mode: " + str(mode))
 
 
-def read_next_bytes(fid, num_bytes, format_char_sequence, endian_character="<"):
-    data = fid.read(num_bytes)
-    return struct.unpack(endian_character + format_char_sequence, data)
-
-
-def read_colmap_images_bin(path):
-    images = {}
-    with open(path, "rb") as fid:
-        num_images = read_next_bytes(fid, 8, "Q")[0]
-        for _ in range(num_images):
-            image_id = read_next_bytes(fid, 4, "I")[0]
-            qw, qx, qy, qz = read_next_bytes(fid, 32, "dddd")
-            tx, ty, tz = read_next_bytes(fid, 24, "ddd")
-            camera_id = read_next_bytes(fid, 4, "I")[0]
-
-            name = b""
-            while True:
-                c = fid.read(1)
-                if c == b"\x00":
-                    break
-                name += c
-            name = name.decode("utf-8")
-
-            num_points2D = read_next_bytes(fid, 8, "Q")[0]
-            fid.read(num_points2D * 24)  # skip points2D
-
-            images[name] = {
-                "qvec": [qw, qx, qy, qz],
-                "tvec": [tx, ty, tz],
-                "camera_id": camera_id,
-            }
-    return images
-
-
-def read_colmap_cameras_bin(path):
-    cameras = {}
-    with open(path, "rb") as fid:
-        num_cameras = read_next_bytes(fid, 8, "Q")[0]
-        for _ in range(num_cameras):
-            cam_id = read_next_bytes(fid, 4, "I")[0]
-            model_id = read_next_bytes(fid, 4, "i")[0]
-            width = read_next_bytes(fid, 8, "Q")[0]
-            height = read_next_bytes(fid, 8, "Q")[0]
-            num_params = read_next_bytes(fid, 8, "Q")[0]
-            params = read_next_bytes(fid, 8 * num_params, "d" * num_params)
-            cameras[cam_id] = {
-                "model_id": model_id,
-                "width": width,
-                "height": height,
-                "params": list(params),
-            }
-    return cameras
-
-
 def ensure_dir(path):
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
@@ -243,13 +189,10 @@ def compute_quality_metrics(img_rgb):
 def screen_image(metrics, dataset_stats, z_thresh, min_flags):
     flags = []
     STRUCTURAL_KEYS = {
-        "blur",
-        "motion_blur",
-        "edge_density",
-        "entropy",
-        "saturation_ratio",
-        "low_texture_ratio",
+        "blur", "motion_blur", "edge_density",
+        "entropy", "saturation_ratio", "low_texture_ratio"
     }
+
     for k, v in metrics.items():
         z = abs(v - dataset_stats[k]["mean"]) / dataset_stats[k]["std"]
         if z > z_thresh:
@@ -257,45 +200,30 @@ def screen_image(metrics, dataset_stats, z_thresh, min_flags):
 
     structural_flags = [f for f in flags if f in STRUCTURAL_KEYS]
 
-    # --- semantic decision logic ---
-    needs_diffusion = False
-    is_blurry = False
+    decision = "NONE"
 
-    if len(structural_flags) >= min_flags:
-        needs_diffusion = True
-
-    # --- semantic blur detection ---
-
-    # Case 1: Defocus blur (true loss of detail)
+    # --- REPAIR conditions ---
     if (
-            "blur" in flags and
-            "edge_density" in flags and
-            "entropy" in flags
+            "blur" in flags or
+            "motion_blur" in flags or
+            "low_texture_ratio" in flags or
+            "saturation_ratio" in flags
     ):
-        is_blurry = True
-        flags.append("confirmed_defocus_blur")
+        decision = "REPAIR"
 
-    # Case 2: Motion blur (edges exist but smeared) also checks for information destruction
-    if (
-            "motion_blur" in flags and
-            "edge_density" in flags and
-            "entropy" in flags
+    # --- NOVEL VIEW conditions ---
+    elif (
+            metrics["entropy"] > dataset_stats["entropy"]["mean"] and
+            metrics["edge_density"] > dataset_stats["edge_density"]["mean"]
     ):
-        is_blurry = True
-        flags.append("confirmed_motion_blur")
+        decision = "NOVEL_VIEW"
 
-    if is_blurry:
-        needs_diffusion = True
-        flags.append("confirmed_blur")
-    # Rule 3: saturation indicates missing information
-
-    if "saturation_ratio" in flags or "low_texture_ratio" in flags:
-        needs_diffusion = True
-        flags.append("missing_region")
+    needs_diffusion = decision != "NONE"
 
     return {
         "needs_diffusion": needs_diffusion,
-        "flags": flags
+        "flags": flags,
+        "decision": decision
     }
 
 
@@ -401,9 +329,11 @@ def process_func(args):
 
 
 # For mask generation
-def blur_mask(gray):
-    edges = cv2.Canny((gray * 255).astype(np.uint8), 50, 150)
-    return (edges == 0).astype(np.uint8) * 255
+def blur_mask(gray, thresh=30):
+    lap = cv2.Laplacian((gray * 255).astype(np.uint8), cv2.CV_32F)
+    mag = np.abs(lap)
+    mask = mag < thresh  # low detail = needs repair
+    return (mask.astype(np.uint8)) * 255
 
 
 def saturation_mask(gray, low=0.02, high=0.98):
@@ -411,36 +341,37 @@ def saturation_mask(gray, low=0.02, high=0.98):
     return (mask.astype(np.uint8)) * 255
 
 
-def low_texture_mask(gray, thresh=0.01):
+def low_texture_mask(gray, std_thresh=0.005):
     mean = cv2.GaussianBlur(gray, (15, 15), 0)
-    sq_mean = cv2.GaussianBlur(gray**2, (15, 15), 0)
-    local_var = sq_mean - mean**2
-    return (local_var < thresh).astype(np.uint8) * 255
-
-
-def postprocess_mask(mask, dilate_iters=2):
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv2.dilate(mask, kernel, iterations=dilate_iters)
-    return mask
+    sq_mean = cv2.GaussianBlur(gray ** 2, (15, 15), 0)
+    local_var = sq_mean - mean ** 2
+    mask = local_var < std_thresh
+    return (mask.astype(np.uint8)) * 255
 
 
 def generate_repair_mask(img_rgb, flags):
     gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
     masks = []
 
-    if "confirmed_blur" in flags:
+    if "blur" in flags or "confirmed_blur" in flags:
         masks.append(blur_mask(gray))
 
-    if "missing_region" in flags:
-        masks.append(saturation_mask(gray))
+    if "low_texture_ratio" in flags:
         masks.append(low_texture_mask(gray))
 
-    if not masks:
-        return np.zeros_like(gray, dtype=np.uint8)
+    if masks:
+        final_mask = np.maximum.reduce(masks)
+        # small dilation to give context but not too big
+        kernel = np.ones((3, 3), np.uint8)
+        final_mask = cv2.dilate(final_mask, kernel, iterations=1)
+    else:
+        final_mask = np.zeros_like(gray, dtype=np.uint8)
 
-    final_mask = np.maximum.reduce(masks)
-    final_mask = postprocess_mask(final_mask)
     return final_mask.astype(np.uint8)
+
+    # if "missing_region" in flags:
+    #     masks.append(saturation_mask(gray))
+    #     masks.append(low_texture_mask(gray))
 
 
 def skip(entry):
@@ -451,10 +382,12 @@ def main(args):
     manifest = process_func(args)
     for entry in manifest["images"]:
         # print(entry["filename"], entry["screening"], entry.get("mask_path"))
-        if entry["screening"]["needs_diffusion"]:
-            print(f"will run diffusion for {entry['filename']}")
-        else:
-            skip(entry)
+        for entry in manifest["images"]:
+            if entry["screening"]["decision"] == "REPAIR":
+                print(f"Will run diffusion inpainting for {entry['filename']}")
+
+            elif entry["screening"]["decision"] == "NOVEL_VIEW":
+                print(f"will run Diffusion Img-Img on {entry['filename']}")
 
 
 if __name__ == "__main__":

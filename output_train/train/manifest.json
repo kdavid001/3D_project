@@ -14,7 +14,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -32,7 +33,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -55,7 +57,8 @@
           "entropy",
           "brightness",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00009.png"
     },
@@ -72,10 +75,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00011.png"
     },
     {
       "filename": "00015.jpg",
@@ -94,7 +98,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00015.png"
     },
@@ -112,7 +117,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -130,7 +136,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -148,7 +155,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -166,7 +174,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -183,10 +192,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00027.png"
     },
     {
       "filename": "00028.jpg",
@@ -201,10 +211,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00028.png"
     },
     {
       "filename": "00030.jpg",
@@ -222,7 +233,8 @@
         "needs_diffusion": false,
         "flags": [
           "brightness"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -240,7 +252,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -258,7 +271,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -279,7 +293,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00037.png"
     },
@@ -300,7 +315,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00038.png"
     },
@@ -323,7 +339,8 @@
           "entropy",
           "brightness",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00044.png"
     },
@@ -345,7 +362,8 @@
           "entropy",
           "brightness",
           "contrast"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -367,7 +385,8 @@
           "blur",
           "motion_blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00049.png"
     },
@@ -384,10 +403,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00050.png"
     },
     {
       "filename": "00054.jpg",
@@ -403,7 +423,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -420,10 +441,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00055.png"
     },
     {
       "filename": "00062.jpg",
@@ -439,7 +461,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -460,7 +483,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00063.png"
     },
@@ -481,7 +505,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00064.png"
     },
@@ -499,7 +524,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -517,7 +543,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -534,10 +561,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00072.png"
     },
     {
       "filename": "00073.jpg",
@@ -553,7 +581,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -571,7 +600,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -589,7 +619,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -610,7 +641,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00077.png"
     },
@@ -628,7 +660,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -646,7 +679,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -664,7 +698,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -682,7 +717,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -700,7 +736,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -721,7 +758,8 @@
         "flags": [
           "motion_blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00086.png"
     },
@@ -739,7 +777,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -761,7 +800,8 @@
           "blur",
           "motion_blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00090.png"
     },
@@ -778,10 +818,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00093.png"
     },
     {
       "filename": "00100.jpg",
@@ -796,13 +837,14 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
+        "needs_diffusion": true,
         "flags": [
           "motion_blur",
           "brightness"
-        ]
+        ],
+        "decision": "REPAIR"
       },
-      "mask_path": null
+      "mask_path": "masks/00100.png"
     },
     {
       "filename": "00102.jpg",
@@ -820,7 +862,8 @@
         "needs_diffusion": false,
         "flags": [
           "brightness"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -842,7 +885,8 @@
           "blur",
           "brightness",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00103.png"
     },
@@ -860,7 +904,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -881,7 +926,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00106.png"
     },
@@ -899,7 +945,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -917,7 +964,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -937,7 +985,8 @@
         "needs_diffusion": false,
         "flags": [
           "contrast"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -956,9 +1005,9 @@
       "screening": {
         "needs_diffusion": true,
         "flags": [
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00112.png"
     },
@@ -975,10 +1024,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00114.png"
     },
     {
       "filename": "00116.jpg",
@@ -994,7 +1044,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1012,7 +1063,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1032,9 +1084,9 @@
         "needs_diffusion": true,
         "flags": [
           "contrast",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00119.png"
     },
@@ -1055,9 +1107,9 @@
         "flags": [
           "entropy",
           "contrast",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00120.png"
     },
@@ -1076,9 +1128,9 @@
       "screening": {
         "needs_diffusion": true,
         "flags": [
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00123.png"
     },
@@ -1095,10 +1147,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00124.png"
     },
     {
       "filename": "00126.jpg",
@@ -1114,7 +1167,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1132,7 +1186,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1155,7 +1210,8 @@
           "entropy",
           "brightness",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00129.png"
     },
@@ -1173,7 +1229,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1191,7 +1248,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1208,10 +1266,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00133.png"
     },
     {
       "filename": "00136.jpg",
@@ -1226,10 +1285,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00136.png"
     },
     {
       "filename": "00137.jpg",
@@ -1246,9 +1306,9 @@
       "screening": {
         "needs_diffusion": true,
         "flags": [
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00137.png"
     },
@@ -1266,7 +1326,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1284,7 +1345,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1304,9 +1366,9 @@
         "needs_diffusion": true,
         "flags": [
           "brightness",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00141.png"
     },
@@ -1323,12 +1385,13 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
+        "needs_diffusion": true,
         "flags": [
           "motion_blur"
-        ]
+        ],
+        "decision": "REPAIR"
       },
-      "mask_path": null
+      "mask_path": "masks/00142.png"
     },
     {
       "filename": "00143.jpg",
@@ -1344,7 +1407,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1361,12 +1425,13 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
+        "needs_diffusion": true,
         "flags": [
           "motion_blur"
-        ]
+        ],
+        "decision": "REPAIR"
       },
-      "mask_path": null
+      "mask_path": "masks/00145.png"
     },
     {
       "filename": "00148.jpg",
@@ -1384,9 +1449,9 @@
         "needs_diffusion": true,
         "flags": [
           "brightness",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00148.png"
     },
@@ -1408,7 +1473,8 @@
           "blur",
           "motion_blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00150.png"
     },
@@ -1427,9 +1493,9 @@
       "screening": {
         "needs_diffusion": true,
         "flags": [
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00152.png"
     },
@@ -1447,7 +1513,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1464,10 +1531,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00155.png"
     },
     {
       "filename": "00156.jpg",
@@ -1482,10 +1550,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00156.png"
     },
     {
       "filename": "00157.jpg",
@@ -1501,7 +1570,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1522,9 +1592,9 @@
         "flags": [
           "entropy",
           "contrast",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00163.png"
     },
@@ -1547,7 +1617,8 @@
           "motion_blur",
           "brightness",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00165.png"
     },
@@ -1570,7 +1641,8 @@
           "motion_blur",
           "brightness",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00167.png"
     },
@@ -1587,10 +1659,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00168.png"
     },
     {
       "filename": "00169.jpg",
@@ -1608,7 +1681,8 @@
         "needs_diffusion": false,
         "flags": [
           "contrast"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1625,14 +1699,15 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
+        "needs_diffusion": true,
         "flags": [
           "motion_blur",
           "brightness",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
-      "mask_path": null
+      "mask_path": "masks/00173.png"
     },
     {
       "filename": "00177.jpg",
@@ -1650,7 +1725,8 @@
         "needs_diffusion": false,
         "flags": [
           "contrast"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1671,7 +1747,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00178.png"
     },
@@ -1692,7 +1769,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00180.png"
     },
@@ -1712,7 +1790,8 @@
         "needs_diffusion": false,
         "flags": [
           "brightness"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1730,7 +1809,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1748,7 +1828,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1765,10 +1846,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00190.png"
     },
     {
       "filename": "00191.jpg",
@@ -1783,10 +1865,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00191.png"
     },
     {
       "filename": "00194.jpg",
@@ -1801,10 +1884,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00194.png"
     },
     {
       "filename": "00196.jpg",
@@ -1819,10 +1903,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00196.png"
     },
     {
       "filename": "00199.jpg",
@@ -1837,13 +1922,14 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
+        "needs_diffusion": true,
         "flags": [
           "motion_blur",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
-      "mask_path": null
+      "mask_path": "masks/00199.png"
     },
     {
       "filename": "00200.jpg",
@@ -1859,7 +1945,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1876,10 +1963,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00202.png"
     },
     {
       "filename": "00206.jpg",
@@ -1895,7 +1983,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1916,7 +2005,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00208.png"
     },
@@ -1934,7 +2024,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1952,7 +2043,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1970,7 +2062,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -1988,7 +2081,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2009,7 +2103,8 @@
         "flags": [
           "blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00215.png"
     },
@@ -2032,7 +2127,8 @@
           "entropy",
           "brightness",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00216.png"
     },
@@ -2052,7 +2148,8 @@
         "needs_diffusion": false,
         "flags": [
           "brightness"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2069,10 +2166,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00221.png"
     },
     {
       "filename": "00222.jpg",
@@ -2087,10 +2185,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00222.png"
     },
     {
       "filename": "00224.jpg",
@@ -2105,10 +2204,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00224.png"
     },
     {
       "filename": "00225.jpg",
@@ -2123,10 +2223,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00225.png"
     },
     {
       "filename": "00226.jpg",
@@ -2141,10 +2242,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00226.png"
     },
     {
       "filename": "00227.jpg",
@@ -2159,10 +2261,11 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
-        "flags": []
+        "needs_diffusion": true,
+        "flags": [],
+        "decision": "NOVEL_VIEW"
       },
-      "mask_path": null
+      "mask_path": "masks/00227.png"
     },
     {
       "filename": "00231.jpg",
@@ -2181,7 +2284,8 @@
         "flags": [
           "motion_blur",
           "entropy"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00231.png"
     },
@@ -2199,7 +2303,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2217,7 +2322,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2235,7 +2341,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2253,7 +2360,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2274,7 +2382,8 @@
         "flags": [
           "motion_blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00238.png"
     },
@@ -2297,7 +2406,8 @@
           "entropy",
           "brightness",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00239.png"
     },
@@ -2315,7 +2425,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2335,9 +2446,9 @@
         "needs_diffusion": true,
         "flags": [
           "entropy",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00242.png"
     },
@@ -2355,7 +2466,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2375,9 +2487,9 @@
         "needs_diffusion": true,
         "flags": [
           "entropy",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00247.png"
     },
@@ -2397,7 +2509,8 @@
         "needs_diffusion": false,
         "flags": [
           "contrast"
-        ]
+        ],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2418,7 +2531,8 @@
         "flags": [
           "motion_blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00256.png"
     },
@@ -2435,12 +2549,13 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
+        "needs_diffusion": true,
         "flags": [
           "motion_blur"
-        ]
+        ],
+        "decision": "REPAIR"
       },
-      "mask_path": null
+      "mask_path": "masks/00258.png"
     },
     {
       "filename": "00259.jpg",
@@ -2456,7 +2571,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2474,7 +2590,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2492,7 +2609,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2510,7 +2628,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2531,9 +2650,9 @@
         "flags": [
           "motion_blur",
           "entropy",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00270.png"
     },
@@ -2551,7 +2670,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2569,7 +2689,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2590,9 +2711,9 @@
         "flags": [
           "entropy",
           "contrast",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00277.png"
     },
@@ -2610,7 +2731,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2628,7 +2750,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2646,7 +2769,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2666,9 +2790,9 @@
         "needs_diffusion": true,
         "flags": [
           "entropy",
-          "saturation_ratio",
-          "missing_region"
-        ]
+          "saturation_ratio"
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00284.png"
     },
@@ -2685,13 +2809,14 @@
         "low_texture_ratio": 0.0
       },
       "screening": {
-        "needs_diffusion": false,
+        "needs_diffusion": true,
         "flags": [
           "motion_blur",
           "contrast"
-        ]
+        ],
+        "decision": "REPAIR"
       },
-      "mask_path": null
+      "mask_path": "masks/00285.png"
     },
     {
       "filename": "00291.jpg",
@@ -2707,7 +2832,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2725,7 +2851,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2743,7 +2870,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2761,7 +2889,8 @@
       },
       "screening": {
         "needs_diffusion": false,
-        "flags": []
+        "flags": [],
+        "decision": "NONE"
       },
       "mask_path": null
     },
@@ -2783,7 +2912,8 @@
           "blur",
           "motion_blur",
           "edge_density"
-        ]
+        ],
+        "decision": "REPAIR"
       },
       "mask_path": "masks/00297.png"
     }
