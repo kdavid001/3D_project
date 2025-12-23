@@ -12,3 +12,4 @@ safetensors
 torch
 torchvision
 xformers
+# pip install --upgrade diffusers transformers accelerate
