@@ -1,13 +1,13 @@
 nsenv
 Original Images
-output
-research files
+others/output
+others/research files
 gaussian splatting .glb
 Professional Headshot.png
-some liinks.txt
-Tutorial Video.mp4
-YTDown.com_YouTube_TUM-AI-Lecture-Series-The-3D-Gaussian-Sp_Media_DjOqkVIlEGY_001_720p.mp4
-tandt_db
+others/some liinks.txt
+others/Tutorial Video.mp4
+others/YTDown.com_YouTube_TUM-AI-Lecture-Series-The-3D-Gaussian-Sp_Media_DjOqkVIlEGY_001_720p.mp4
+others/tandt_db
 Mask_generation/images
 Mask_generation/masks
 Mask_generation/output
@@ -16,4 +16,6 @@ Mask_generation/image_flags.json
 Mask_generation/mask.py
 Mask_generation/manifest.json
 Mask_generation/__pycache__/
-
+others
+inpainting_ready
+.idea/

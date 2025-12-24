@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 """
-load_images.py
+Step 1: load_images.py - Image quality screening with PyIQA (BRISQUE)
 
 Usage:
     python load_images.py --input_dir ./raw_images --out_dir ./preprocessed --target_size 1024 --resize_mode pad
 
-What it does:
-- loads all images in input_dir
-- optionally resizes them to target_size (preserve aspect ratio by 'pad' or 'crop' or 'none')
-- computes basic stats per image (shape, mean, std, brightness)
-- writes manifest.json with metadata for each image
-- saves processed images to out_dir/images/
-
-Dependencies:
-    pip install pillow numpy opencv-python tqdm
+Decision Logic (BRISQUE Score 0-100, Lower is Better):
+- Score > 21.0: BAD     -> Flag for REPAIR (Inpainting)
+- Score < 15.0: PERFECT -> Flag for NOVEL_VIEW (Img2Img Variations)
+- Score 15-21:  GOOD    -> Keep as is (NONE)
 """
 
 import os
@@ -22,12 +17,24 @@ import argparse
 from PIL import Image, ImageOps
 import numpy as np
 from tqdm import tqdm
-import struct
-import cv2
-import math
+import torch
+import pyiqa
 
-# supported file types
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png"}
+
+# -------------------------------------------------------------------------
+# GLOBAL MODEL INITIALIZATION
+# -------------------------------------------------------------------------
+print("⏳ Loading PyIQA (BRISQUE) model...")
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+try:
+    # Initialize metric once
+    IQA_MODEL = pyiqa.create_metric('brisque', device=DEVICE)
+    print(f"✅ Model loaded on {DEVICE}")
+except Exception as e:
+    print(f"❌ Error loading PyIQA model: {e}")
+    exit(1)
 
 
 def is_image_file(filename):
@@ -35,44 +42,15 @@ def is_image_file(filename):
 
 
 def load_images_list(input_dir):
-    files = sorted(
-        [
-            os.path.join(input_dir, f)
-            for f in os.listdir(input_dir)
-            if is_image_file(f)
-        ]
-    )
+    files = sorted([
+        os.path.join(input_dir, f)
+        for f in os.listdir(input_dir)
+        if is_image_file(f)
+    ])
     return files
 
 
-def pil_to_np(img):
-    arr = np.array(img)  # H W C or H W for grayscale
-    if arr.ndim == 2:
-        arr = np.expand_dims(arr, axis=-1)
-    return arr
-
-
-def compute_image_stats(np_img):
-    # np_img expected H W C, dtype uint8
-    arr = np_img.astype(np.float32) / 255.0
-    mean = float(arr.mean())
-    std = float(arr.std())
-    # brightness as mean of luminance (simple)
-    if arr.shape[2] == 1:
-        lum = arr[..., 0]
-    else:
-        r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
-        lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    brightness = float(lum.mean())
-    return {"mean": mean, "std": std, "brightness": brightness}
-
-
 def resize_image(img: Image.Image, target_size, mode="pad"):
-    """
-    mode: 'pad' (preserve aspect, pad to square), 'crop' (center-crop to square then resize),
-          'stretch' (ignore aspect), 'none' (return original)
-    target_size: int or (w,h)
-    """
     if mode == "none" or target_size is None:
         return img
 
@@ -86,7 +64,6 @@ def resize_image(img: Image.Image, target_size, mode="pad"):
 
     w, h = img.size
     if mode == "pad":
-        # resize to fit inside target, then pad
         img.thumbnail((target_w, target_h), Image.LANCZOS)
         pad_w = target_w - img.width
         pad_h = target_h - img.height
@@ -96,7 +73,6 @@ def resize_image(img: Image.Image, target_size, mode="pad"):
         bottom = pad_h - top
         return ImageOps.expand(img, border=(left, top, right, bottom), fill=(0, 0, 0))
     elif mode == "crop":
-        # center-crop to square then resize
         min_side = min(w, h)
         left = (w - min_side) // 2
         top = (h - min_side) // 2
@@ -111,132 +87,48 @@ def ensure_dir(path):
         os.makedirs(path, exist_ok=True)
 
 
-# quality metric functions
-"""
-This section of code functions are to create a quality metric check
-for each images so that the diffusion model would only be triggered for this images
-
-"""
-
-
-def laplacian_variance(gray):
-    gray_u8 = (gray * 255).astype(np.uint8)
-    """ 
-    Note: gray is float32 in range [0, 1] OpenCV’s optimized Laplacian 
-    path does not support this specific source → destination 
-    combination on macOS builds
+def get_image_score(image_path):
     """
-    return cv2.Laplacian(gray_u8, cv2.CV_64F).var()
+    Computes the BRISQUE score.
+    Returns: float (0.0 best - 100.0 worst)
+    """
+    with torch.no_grad():
+        score = IQA_MODEL(image_path)
+    return score.item()
 
 
-def image_entropy(gray):
-    hist = np.histogram(gray, bins=256, range=(0, 1))[0]
-    prob = hist / (hist.sum() + 1e-8)
-    prob = prob[prob > 0]
-    return float(-np.sum(prob * np.log2(prob)))
+def screen_image_brisque(score):
+    """
+    Decision Logic for Pipeline
+    """
+    # --- THRESHOLDS ---
+    # > 21 is clearly bad.
+    # < 15 is exceptionally high quality (candidates for novel view generation).
+    BAD_QUALITY_THRESHOLD = 21.0
+    PERFECT_QUALITY_THRESHOLD = 15.0
 
-
-def edge_density(gray):
-    edges = cv2.Canny((gray * 255).astype(np.uint8), 50, 150)
-    return edges.mean() / 255.0
-
-
-def saturation_ratio(gray, low=0.02, high=0.98):
-    return np.mean((gray < low) | (gray > high))
-
-
-def motion_blur_score(gray):
-    sobelx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
-    sobely = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
-    mag = np.sqrt(sobelx ** 2 + sobely ** 2)
-    return float(mag.mean())
-
-
-# For black holes, this part doesn't matter for real-life sinerios
-def low_texture_ratio(gray, thresh=0.01):
-    return np.mean(gray.std(axis=0) < thresh)
-
-
-# End of Quality metric functions
-
-
-def compute_dataset_stats(metrics_list):
-    stats = {}
-    for key in metrics_list[0]:
-        values = np.array([m[key] for m in metrics_list])
-        stats[key] = {
-            "mean": float(values.mean()),
-            "std": float(values.std() + 1e-6),
-        }
-    return stats
-
-
-def compute_quality_metrics(img_rgb):
-    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
-
-    return {
-        "blur": laplacian_variance(gray),
-        "motion_blur": motion_blur_score(gray),
-        "entropy": image_entropy(gray),
-        "brightness": float(gray.mean()),  # works on dark images
-        "contrast": float(gray.std()),
-        "edge_density": edge_density(gray),
-        "saturation_ratio": saturation_ratio(gray),  # This is more of high saturation checker
-        "low_texture_ratio": low_texture_ratio(gray),
-    }
-
-
-def screen_image(metrics, dataset_stats, z_thresh, min_flags):
     flags = []
-    STRUCTURAL_KEYS = {
-        "blur", "motion_blur", "edge_density",
-        "entropy", "saturation_ratio", "low_texture_ratio"
-    }
-
-    for k, v in metrics.items():
-        z = abs(v - dataset_stats[k]["mean"]) / dataset_stats[k]["std"]
-        if z > z_thresh:
-            flags.append(k)
-
-    structural_flags = [f for f in flags if f in STRUCTURAL_KEYS]
-
     decision = "NONE"
 
-    # --- REPAIR conditions ---
-    if (
-            "blur" in flags or
-            "motion_blur" in flags or
-            "low_texture_ratio" in flags or
-            "saturation_ratio" in flags
-    ):
+    if score > BAD_QUALITY_THRESHOLD:
+        flags.append("poor_quality_brisque")
         decision = "REPAIR"
-
-    # --- NOVEL VIEW conditions ---
-    elif (
-            metrics["entropy"] > dataset_stats["entropy"]["mean"] and
-            metrics["edge_density"] > dataset_stats["edge_density"]["mean"]
-    ):
+    elif score < PERFECT_QUALITY_THRESHOLD:
+        flags.append("perfect_quality_brisque")
         decision = "NOVEL_VIEW"
 
-    needs_diffusion = decision != "NONE"
-
     return {
-        "needs_diffusion": needs_diffusion,
+        "needs_diffusion": decision != "NONE",
         "flags": flags,
-        "decision": decision
+        "decision": decision,
+        "score": score
     }
 
 
-manifest = {
-    "images": []
-}
-quality_list = []
-
-
-def process_func(args):
+def process_images(args):
+    """Main processing function"""
     input_dir = args.input_dir
     out_dir = args.out_dir
-    # colmap_metadata = args.use_colmap_metadata
     target_size = args.target_size
     resize_mode = args.resize_mode
 
@@ -246,7 +138,7 @@ def process_func(args):
     else:
         input_images_dir = input_dir
 
-    ensure_dir(out_dir)  # just for the output directory
+    ensure_dir(out_dir)
     images_out_dir = os.path.join(out_dir, "images")
     ensure_dir(images_out_dir)
 
@@ -255,153 +147,144 @@ def process_func(args):
         print(f"No images found in {input_images_dir}. Supported: {SUPPORTED_EXTS}")
         return
 
-    for path in tqdm(files):
+    manifest = {"images": []}
+
+    print(f"Processing {len(files)} images...")
+
+    for path in tqdm(files, desc="Analyzing"):
         base = os.path.basename(path)
         try:
+            # 1. Load and Resize
             img = Image.open(path).convert("RGB")
             proc_img = resize_image(img, target_size, resize_mode) if target_size else img
-            np_img = pil_to_np(proc_img)
 
+            # 2. Save processed image
             out_path = os.path.join(images_out_dir, base)
             proc_img.save(out_path)
-            quality = compute_quality_metrics(np_img)
+
+            # 3. Compute Score
+            brisque_score = get_image_score(out_path)
+
+            # 4. Make Decision
+            screening_result = screen_image_brisque(brisque_score)
 
             entry = {
                 "filename": base,
-                "quality": quality,
+                "quality_score": brisque_score,
+                "screening": screening_result
             }
 
             manifest["images"].append(entry)
-            quality_list.append(quality)
 
         except Exception as e:
             print(f"Error processing {base}: {e}")
             continue
 
-    dataset_stats = compute_dataset_stats(quality_list)
+    # Count stats
+    num_repair = sum(1 for e in manifest["images"] if e["screening"]["decision"] == "REPAIR")
+    num_novel = sum(1 for e in manifest["images"] if e["screening"]["decision"] == "NOVEL_VIEW")
+    num_none = len(manifest["images"]) - num_repair - num_novel
 
-    for entry in manifest["images"]:
-        # TODO: Edit this for loop if you aren't getting
-        #  good results for the selection process
+    print(f"\n{'=' * 60}")
+    print(f"Screening Results (BRISQUE Metric):")
+    print(f"  Total images: {len(manifest['images'])}")
+    print(f"  REPAIR (> 21.0):      {num_repair} (Bad quality)")
+    print(f"  NOVEL_VIEW (< 15.0):  {num_novel}  (Perfect quality)")
+    print(f"  NONE (15.0 - 21.0):   {num_none}   (Standard quality)")
+    print(f"{'=' * 60}\n")
 
-        decision = screen_image(
-            entry["quality"],
-            dataset_stats,
-            z_thresh=1.5,  # 2 is recommended, but detection works better with 1.5.
-            min_flags=2
-        )
-        entry["screening"] = decision
-        # print(entry["filename"], decision["needs_diffusion"], decision["flags"])
-
-        # --- mask generation ---
-        mask_dir = os.path.join(out_dir, "masks")
-        ensure_dir(mask_dir)
-
-        if decision["needs_diffusion"]:
-            # reload processed image to generate mask
-            img_path = os.path.join(images_out_dir, entry["filename"])
-            img_rgb = np.array(Image.open(img_path).convert("RGB"))
-
-            mask = generate_repair_mask(
-                img_rgb,
-                decision["flags"]
-            )
-
-            mask_name = entry["filename"].rsplit(".", 1)[0] + ".png"
-            mask_path = os.path.join(mask_dir, mask_name)
-            Image.fromarray(mask).save(mask_path)
-
-            entry["mask_path"] = f"masks/{mask_name}"
-        else:
-            entry["mask_path"] = None
-
-    num_flagged = sum(
-        1 for e in manifest["images"]
-        if e["screening"]["needs_diffusion"]
-    )
-
-    print(f"{num_flagged} / {len(manifest['images'])} images flagged for diffusion")
-    # Save the manifest with updated screening and mask info
-    with open(os.path.join(out_dir, "manifest.json"), "w") as f:
+    # Save manifest
+    manifest_path = os.path.join(out_dir, "manifest.json")
+    with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
+
+    print(f"✓ Manifest saved to: {manifest_path}")
+    print(f"✓ Processed images saved to: {images_out_dir}")
+
+    if num_repair > 0:
+        print(f"\n[!] Run prepare_masks.py to generate masks for the {num_repair} REPAIR images.")
+
+    if num_novel > 0:
+        print(f"[!] {num_novel} images marked for NOVEL_VIEW generation.")
 
     return manifest
 
 
-# For mask generation
-def blur_mask(gray, thresh=30):
-    lap = cv2.Laplacian((gray * 255).astype(np.uint8), cv2.CV_32F)
-    mag = np.abs(lap)
-    mask = mag < thresh  # low detail = needs repair
-    return (mask.astype(np.uint8)) * 255
+def test_single_image(image_path, target_size=None, resize_mode="pad"):
+    """
+    Test a single image with PyIQA
+    """
+    print(f"\n{'=' * 60}")
+    print(f"SINGLE IMAGE ANALYSIS (PyIQA BRISQUE)")
+    print(f"{'=' * 60}")
+    print(f"Image: {image_path}\n")
+
+    try:
+        img = Image.open(image_path).convert("RGB")
+        print(f"Original Size: {img.size}")
+
+        proc_img = resize_image(img, target_size, resize_mode) if target_size else img
+
+        # Temp save for inference
+        temp_path = "temp_test_image_iqa.png"
+        proc_img.save(temp_path)
+
+        score = get_image_score(temp_path)
+
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+        result = screen_image_brisque(score)
+
+        print("\n" + "-" * 60)
+        print(f"QUALITY SCORE: {score:.4f}")
+        print("-" * 60)
+        print("Scale: 0 (Best) to 100 (Worst)")
+        print("Thresholds: <15 (Perfect), >21 (Bad)")
+
+        print(f"\nDecision: {result['decision']}")
+
+        if result['decision'] == "REPAIR":
+            print("❌ Status: BAD QUALITY")
+            print("   Action: Needs Diffusion Repair")
+        elif result['decision'] == "NOVEL_VIEW":
+            print("✨ Status: PERFECT QUALITY")
+            print("   Action: Generate Novel Views")
+        else:
+            print("✅ Status: GOOD")
+            print("   Action: Keep as is")
+
+        print(f"\n{'=' * 60}\n")
+
+    except Exception as e:
+        print(f"❌ Error analyzing image: {e}")
+        import traceback
+        traceback.print_exc()
 
 
-def saturation_mask(gray, low=0.02, high=0.98):
-    mask = (gray < low) | (gray > high)
-    return (mask.astype(np.uint8)) * 255
+def main():
+    parser = argparse.ArgumentParser(description="Image quality screening using PyIQA")
+    parser.add_argument("--input_dir", help="Folder with raw images")
+    parser.add_argument("--out_dir", help="Folder to write output")
+    parser.add_argument("--target_size", type=int, default=None, help="Resize to square size (e.g. 1024)")
+    parser.add_argument("--resize_mode", choices=["pad", "crop", "stretch", "none"], default="pad")
 
+    parser.add_argument("--test", action="store_true", help="Test mode: analyze a single image")
+    parser.add_argument("--test_image", help="Path to single image to test")
 
-def low_texture_mask(gray, std_thresh=0.005):
-    mean = cv2.GaussianBlur(gray, (15, 15), 0)
-    sq_mean = cv2.GaussianBlur(gray ** 2, (15, 15), 0)
-    local_var = sq_mean - mean ** 2
-    mask = local_var < std_thresh
-    return (mask.astype(np.uint8)) * 255
+    args = parser.parse_args()
 
-
-def generate_repair_mask(img_rgb, flags):
-    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
-    masks = []
-
-    if "blur" in flags or "confirmed_blur" in flags:
-        masks.append(blur_mask(gray))
-
-    if "low_texture_ratio" in flags:
-        masks.append(low_texture_mask(gray))
-
-    if masks:
-        final_mask = np.maximum.reduce(masks)
-        # small dilation to give context but not too big
-        kernel = np.ones((3, 3), np.uint8)
-        final_mask = cv2.dilate(final_mask, kernel, iterations=1)
+    if args.test:
+        if not args.test_image:
+            print("❌ --test_image required when using --test")
+            return
+        test_single_image(args.test_image, args.target_size, args.resize_mode)
     else:
-        final_mask = np.zeros_like(gray, dtype=np.uint8)
-
-    return final_mask.astype(np.uint8)
-
-    # if "missing_region" in flags:
-    #     masks.append(saturation_mask(gray))
-    #     masks.append(low_texture_mask(gray))
-
-
-def skip(entry):
-    pass
-
-
-def main(args):
-    manifest = process_func(args)
-    for entry in manifest["images"]:
-        # print(entry["filename"], entry["screening"], entry.get("mask_path"))
-        for entry in manifest["images"]:
-            if entry["screening"]["decision"] == "REPAIR":
-                print(f"Will run diffusion inpainting for {entry['filename']}")
-
-            elif entry["screening"]["decision"] == "NOVEL_VIEW":
-                print(f"will run Diffusion Img-Img on {entry['filename']}")
+        if not args.input_dir or not args.out_dir:
+            print("❌ --input_dir and --out_dir required for batch processing")
+            return
+        process_images(args)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_dir", required=True, help="Folder with raw images")
-    parser.add_argument("--out_dir", required=True, help="Folder to write preprocessed images and manifest")
-    # parser.add_argument("----use_colmap_metadata", default=1, type=int, help="Whether to use colmap metadata"
-    #                                                                          "use '0'->False, '1'->True this accepts "
-    #                                                                          "integers only")
-
-    parser.add_argument("--target_size", type=int, default=None,
-                        help="If set, resize images to this square size (e.g. 1024). Use resize_mode to control"
-                             " strategy.")
-    parser.add_argument("--resize_mode", choices=["pad", "crop", "stretch", "none"], default="pad",
-                        help="How to resize while preserving aspect.")
-    args = parser.parse_args()
-    main(args)
+    main()

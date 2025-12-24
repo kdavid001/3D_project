@@ -12,4 +12,6 @@ safetensors
 torch
 torchvision
 xformers
+pyiqa
+sklearn-image
 # pip install --upgrade diffusers transformers accelerate
