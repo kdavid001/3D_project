@@ -63,3 +63,30 @@ python3 mask2.py \
   --texture_thresh 0.02
 ```
 
+```
+python mask2.py \
+  --manifest ./output_train/train/manifest.json \
+  --output ./inpainting_ready \
+  --blur_thresh 100 \
+  --texture_thresh 0.02 \
+  --min_area 500 \
+  --expand 5
+```
+
+## 🔧 **Tunable Parameters:**
+
+| Parameter | Default | Lower = | Higher = |
+|-----------|---------|---------|----------|
+| `--blur_thresh` | 100 | More sensitive | Less sensitive |
+| `--texture_thresh` | 0.02 | More sensitive | Less sensitive |
+| `--min_area` | 500 | Keep smaller regions | Remove more noise |
+| `--expand` | 5 | Less expansion | More expansion |
+| `--feather` | 0 | Hard edges | Soft edges (3-10) |
+
+## 📊 **ML_mask_gen**
+```
+python ML_mask_gen.py \
+  --manifest ./output_train/train/manifest.json \
+  --output ./inpainting_ready \
+
+```

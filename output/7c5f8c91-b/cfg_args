@@ -1,0 +1,1 @@
+Namespace(sh_degree=3, source_path='/content/drive/MyDrive/pythonprojects/3D_project/gaussian-splatting/input_dataset/Copy_of_3D_video.MP4', model_path='./output/7c5f8c91-b', images='images', depths='', resolution=-1, white_background=False, train_test_exp=False, data_device='cuda', eval=False)

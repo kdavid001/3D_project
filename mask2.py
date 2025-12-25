@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Step 2: prepare_masks.py - Generate masks and prepare for SD inpainting
+Step 2: prepare_masks.py - Auto-generate masks from BRISQUE & Structural Flags
 
 Usage:
-    # Test single image first:
+    # Test single image:
     python prepare_masks.py --manifest ./preprocessed/manifest.json --test --test_image image1.jpg
 
     # Process all flagged images:
     python prepare_masks.py --manifest ./preprocessed/manifest.json --output ./inpainting_ready
 
 What it does:
-- Reads manifest.json from step 1
-- Generates masks ONLY for images flagged as needing repair
-- Improves mask quality with cleanup and expansion
-- Creates masked images for SD inpainting
-- Outputs ready-to-use dataset for diffusion model
+- Reads manifest.json from Step 1
+- Handles 'poor_quality_brisque' flags
+- Hybrid Strategy: Uses local detectors (blur/texture) to find defects
+- Fallback: If no defects found but score is bad -> Masks entire image
+- IMPROVED: Better mask generation with cleanup, expansion, and edge handling
 """
 
 import os
@@ -43,26 +43,18 @@ def create_masked_image(image_pil, mask_pil, fill_mode="gray"):
 
     if fill_mode == "gray":
         fill_value = 0.5
-    elif fill_mode == "black":
-        fill_value = 0.0
-    elif fill_mode == "white":
-        fill_value = 1.0
     elif fill_mode == "noise":
         fill_value = np.random.rand(*image.shape)
     else:
         fill_value = 0.5
 
-    if fill_mode == "noise":
-        masked_image = image * (1.0 - mask_3c) + fill_value * mask_3c
-    else:
-        masked_image = image * (1.0 - mask_3c) + fill_value * mask_3c
-
+    masked_image = image * (1.0 - mask_3c) + fill_value * mask_3c
     masked_image = np.clip(masked_image, 0.0, 1.0)
     return Image.fromarray((masked_image * 255).astype("uint8"))
 
 
 def visualize_mask_overlay(image_pil, mask_pil, alpha=0.6):
-    """Create visualization with red overlay on masked regions"""
+    """Red overlay visualization"""
     image = np.array(image_pil).astype("float32") / 255.0
     mask = np.array(mask_pil).astype("float32") / 255.0
     mask_binary = (mask > 0.5).astype("float32")
@@ -71,13 +63,10 @@ def visualize_mask_overlay(image_pil, mask_pil, alpha=0.6):
     overlay[:, :, 0] = np.clip(overlay[:, :, 0] + mask_binary * 0.7, 0, 1)
 
     result = image * (1 - alpha) + overlay * alpha
-    result = np.clip(result, 0, 1)
-
-    return Image.fromarray((result * 255).astype("uint8"))
+    return Image.fromarray((np.clip(result, 0, 1) * 255).astype("uint8"))
 
 
 def resize_to_multiple_of_8(pil_img):
-    """Resize image to dimensions divisible by 8 (required for VAE)"""
     w, h = pil_img.size
     new_w = w - (w % 8)
     new_h = h - (h % 8)
@@ -86,42 +75,64 @@ def resize_to_multiple_of_8(pil_img):
     return pil_img.resize((new_w, new_h), Image.BICUBIC)
 
 
-# IMPROVED MASK GENERATION FUNCTIONS
+# --- IMPROVED LOCAL DETECTORS ---
 def blur_mask(gray, thresh=100):
-    """Detect blurry regions - HIGHER threshold = less sensitive"""
+    """
+    Detect blurry regions using Laplacian variance.
+    HIGHER threshold = less sensitive (larger values needed to be considered sharp).
+    """
     gray_uint8 = (gray * 255).astype(np.uint8)
+    # Pre-blur to reduce noise
     gray_uint8 = cv2.GaussianBlur(gray_uint8, (5, 5), 0)
 
+    # Laplacian detects edges (high variance = sharp, low variance = blurry)
     lap = cv2.Laplacian(gray_uint8, cv2.CV_32F)
     mag = np.abs(lap)
 
+    # Areas with magnitude below threshold are blurry
     mask = mag < thresh
     return mask.astype(np.uint8) * 255
 
 
 def low_texture_mask(gray, std_thresh=0.02, window_size=15):
-    """Detect low texture regions - HIGHER threshold = less sensitive"""
+    """
+    Detect low texture/detail regions.
+    HIGHER threshold = less sensitive.
+    """
     mean = cv2.GaussianBlur(gray, (window_size, window_size), 0)
     sq_mean = cv2.GaussianBlur(gray ** 2, (window_size, window_size), 0)
     local_var = sq_mean - mean ** 2
-    local_var = np.maximum(local_var, 0)
+    local_var = np.maximum(local_var, 0)  # Clip negative values
 
     mask = local_var < std_thresh
     return mask.astype(np.uint8) * 255
 
 
-def saturation_mask(gray, low=0.02, high=0.98):
-    """Detect over/under saturated regions"""
+def saturation_mask(img_rgb, low=0.02, high=0.98):
+    """
+    Detect over/under saturated regions (clipped highlights/shadows).
+    Works on grayscale by checking extreme brightness values.
+    """
+    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
     mask = (gray < low) | (gray > high)
     return mask.astype(np.uint8) * 255
 
 
+def full_image_mask(shape):
+    """Returns a white mask covering the whole image"""
+    return np.ones((shape[0], shape[1]), dtype=np.uint8) * 255
+
+
+# --- IMPROVED MASK PROCESSING ---
 def clean_mask(mask, min_area=500):
-    """Remove small disconnected regions"""
+    """
+    Remove small disconnected regions (noise).
+    Keeps only regions with area >= min_area pixels.
+    """
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
 
     clean = np.zeros_like(mask)
-    for i in range(1, num_labels):
+    for i in range(1, num_labels):  # Skip background (label 0)
         area = stats[i, cv2.CC_STAT_AREA]
         if area >= min_area:
             clean[labels == i] = 255
@@ -130,65 +141,135 @@ def clean_mask(mask, min_area=500):
 
 
 def morphological_cleanup(mask, close_kernel=7, open_kernel=5):
-    """Apply morphological operations to smooth mask"""
+    """
+    Apply morphological operations to smooth mask.
+    - Closing: Fills small holes inside masked regions
+    - Opening: Removes small noise/protrusions
+    """
+    # Closing: dilate then erode (fills holes)
     kernel_close = np.ones((close_kernel, close_kernel), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
 
+    # Opening: erode then dilate (removes noise)
     kernel_open = np.ones((open_kernel, open_kernel), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
 
     return mask
 
 
-def expand_mask_boundaries(mask, iterations=3):
-    """Expand mask boundaries to ensure full coverage"""
+def expand_mask_boundaries(mask, iterations=5):
+    """
+    Expand mask boundaries to ensure full coverage of defect edges.
+    This helps the model blend properly at boundaries.
+    """
     kernel = np.ones((5, 5), np.uint8)
     dilated = cv2.dilate(mask, kernel, iterations=iterations)
     return dilated
 
 
-def generate_repair_mask(
+def feather_mask_edges(mask, feather_radius=5):
+    """
+    Optional: Apply Gaussian blur to mask edges for smoother transitions.
+    Creates soft boundaries instead of hard edges.
+    """
+    mask_float = mask.astype(np.float32) / 255.0
+    kernel_size = feather_radius * 2 + 1
+    blurred = cv2.GaussianBlur(mask_float, (kernel_size, kernel_size), 0)
+    return (blurred * 255).astype(np.uint8)
+
+
+def generate_hybrid_mask(
         img_rgb,
         flags,
         blur_thresh=100,
         texture_thresh=0.02,
         min_region_area=500,
-        expand_iterations=3
+        expand_iterations=5,
+        feather_radius=0,
+        fallback_threshold=0.10
 ):
     """
-    Generate improved mask for inpainting.
+    IMPROVED HYBRID LOGIC with better mask processing:
 
-    Key improvements:
-    - MUCH higher thresholds (less sensitive)
-    - Better cleanup (remove noise)
-    - Moderate expansion (ensure coverage)
+    1. If 'poor_quality_brisque' flag exists:
+       - Run ALL local detectors (blur, texture, saturation)
+       - Combine their masks
+       - Apply advanced cleanup and expansion
+       - If combined mask < 10% coverage -> Fallback to FULL MASK
+
+    2. Better mask quality through:
+       - Connected component filtering (remove noise)
+       - Morphological cleanup (smooth edges, fill holes)
+       - Boundary expansion (ensure full coverage)
+       - Optional edge feathering (smooth transitions)
     """
     gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
-
     masks = []
 
-    if "blur" in flags:
-        masks.append(blur_mask(gray, thresh=blur_thresh))
+    print(f"    Flags: {flags}")
 
-    if "low_texture_ratio" in flags:
-        masks.append(low_texture_mask(gray, std_thresh=texture_thresh))
+    # Check for global BRISQUE flag
+    is_brisque_bad = any(f in flags for f in ["poor_quality_brisque", "fair_quality_brisque"])
 
-    if "saturation_ratio" in flags:
-        masks.append(saturation_mask(gray))
+    # 1. Run Local Detectors
+    if is_brisque_bad or "blur" in flags:
+        print(f"      → Running blur detector (thresh={blur_thresh})...")
+        blur_m = blur_mask(gray, thresh=blur_thresh)
+        blur_coverage = np.sum(blur_m > 127) / blur_m.size
+        print(f"         Found {blur_coverage * 100:.1f}% blur regions")
+        if blur_coverage > 0.01:  # Only add if significant
+            masks.append(blur_m)
 
+    if is_brisque_bad or "low_texture_ratio" in flags:
+        print(f"      → Running texture detector (thresh={texture_thresh})...")
+        texture_m = low_texture_mask(gray, std_thresh=texture_thresh)
+        texture_coverage = np.sum(texture_m > 127) / texture_m.size
+        print(f"         Found {texture_coverage * 100:.1f}% low-texture regions")
+        if texture_coverage > 0.01:
+            masks.append(texture_m)
+
+    if is_brisque_bad or "saturation_ratio" in flags:
+        print(f"      → Running saturation detector...")
+        sat_m = saturation_mask(img_rgb)
+        sat_coverage = np.sum(sat_m > 127) / sat_m.size
+        print(f"         Found {sat_coverage * 100:.1f}% saturated regions")
+        if sat_coverage > 0.01:
+            masks.append(sat_m)
+
+    # 2. Combine Masks
     if not masks:
-        return np.zeros_like(gray, dtype=np.uint8)
+        print(f"      ⚠️  No detector masks generated")
+        final_mask = np.zeros_like(gray, dtype=np.uint8)
+    else:
+        print(f"      → Combining {len(masks)} detector mask(s)...")
+        final_mask = np.maximum.reduce(masks)
 
-    # Combine masks
-    final_mask = np.maximum.reduce(masks)
+        # 3. IMPROVED CLEANUP PIPELINE
+        print(f"      → Cleaning mask (removing regions < {min_region_area} pixels)...")
+        final_mask = clean_mask(final_mask, min_area=min_region_area)
 
-    # Clean up
-    final_mask = clean_mask(final_mask, min_area=min_region_area)
-    final_mask = morphological_cleanup(final_mask, close_kernel=7, open_kernel=5)
+        print(f"      → Morphological cleanup (smoothing edges, filling holes)...")
+        final_mask = morphological_cleanup(final_mask, close_kernel=7, open_kernel=5)
 
-    # Expand boundaries
-    if expand_iterations > 0:
-        final_mask = expand_mask_boundaries(final_mask, iterations=expand_iterations)
+        # 4. Expand boundaries for better coverage
+        if expand_iterations > 0:
+            print(f"      → Expanding boundaries ({expand_iterations} iterations)...")
+            final_mask = expand_mask_boundaries(final_mask, iterations=expand_iterations)
+
+        # 5. Optional edge feathering
+        if feather_radius > 0:
+            print(f"      → Feathering edges (radius={feather_radius})...")
+            final_mask = feather_mask_edges(final_mask, feather_radius=feather_radius)
+
+    # 6. Check coverage
+    coverage = np.sum(final_mask > 127) / final_mask.size
+    print(f"      Final mask coverage: {coverage * 100:.1f}%")
+
+    # 7. BRISQUE Fallback Strategy
+    if is_brisque_bad and coverage < fallback_threshold:
+        print(f"      ⚠️  BRISQUE says poor quality but coverage < {fallback_threshold * 100}%")
+        print(f"      → Fallback: Creating FULL IMAGE MASK for global repair")
+        final_mask = full_image_mask(gray.shape)
 
     # Ensure binary
     final_mask = (final_mask > 127).astype(np.uint8) * 255
@@ -196,220 +277,219 @@ def generate_repair_mask(
     return final_mask
 
 
-def test_single_image(manifest_path, image_filename, output_dir="./mask_test"):
-    """Test mask generation on a single image"""
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Load manifest
-    with open(manifest_path, 'r') as f:
+def test_single_image(args):
+    """Test mask generation on a single image with parameter exploration"""
+    with open(args.manifest, 'r') as f:
         manifest = json.load(f)
 
-    # Find image entry
-    entry = None
-    for e in manifest["images"]:
-        if e["filename"] == image_filename:
-            entry = e
-            break
+    # Find the test image
+    entry = next((img for img in manifest['images'] if img['filename'] == args.test_image), None)
 
-    if entry is None:
-        print(f"❌ Image {image_filename} not found in manifest")
+    if not entry:
+        print(f"❌ Image {args.test_image} not found in manifest")
         return
 
-    if entry["screening"]["decision"] != "REPAIR":
-        print(f"⚠️  Image {image_filename} is not flagged for REPAIR")
+    if entry['screening']['decision'] != "REPAIR":
+        print(f"⚠️  Warning: {args.test_image} is not flagged as REPAIR")
         print(f"   Decision: {entry['screening']['decision']}")
-        print(f"   Flags: {entry['screening']['flags']}")
-        return
+        print(f"   Continuing anyway for testing...\n")
 
-    # Get paths
-    base_dir = os.path.dirname(manifest_path)
-    image_path = os.path.join(base_dir, "images", entry["filename"])
+    # Locate image
+    base_dir = os.path.dirname(args.manifest)
+    possible_paths = [
+        os.path.join(base_dir, "images", args.test_image),
+        os.path.join(base_dir, args.test_image)
+    ]
+    img_path = next((p for p in possible_paths if os.path.exists(p)), None)
+
+    if not img_path:
+        print(f"❌ Image not found at any of: {possible_paths}")
+        return
 
     print(f"\n{'=' * 60}")
-    print(f"Testing mask generation for: {image_filename}")
+    print(f"Testing mask generation: {args.test_image}")
     print(f"Flags: {entry['screening']['flags']}")
+    if 'score' in entry['screening']:
+        print(f"BRISQUE Score: {entry['screening']['score']:.2f}")
     print(f"{'=' * 60}\n")
 
     # Load image
-    image = Image.open(image_path).convert("RGB")
-    image = resize_to_multiple_of_8(image)
-    img_rgb = np.array(image)
+    img_pil = Image.open(img_path).convert("RGB")
+    img_pil = resize_to_multiple_of_8(img_pil)
+    img_np = np.array(img_pil)
 
-    # Test different thresholds
-    print("Testing different blur thresholds:")
-    for blur_t in [50, 100, 150, 200]:
-        mask = generate_repair_mask(
-            img_rgb,
+    # Test with different thresholds
+    test_configs = [
+        {"blur_thresh": 80, "texture_thresh": 0.01, "expand": 3},
+        {"blur_thresh": 100, "texture_thresh": 0.02, "expand": 5},
+        {"blur_thresh": 150, "texture_thresh": 0.03, "expand": 7},
+    ]
+
+    os.makedirs("./mask_test", exist_ok=True)
+
+    for i, config in enumerate(test_configs, 1):
+        print(
+            f"\n--- Test {i}: blur={config['blur_thresh']}, texture={config['texture_thresh']}, expand={config['expand']} ---")
+
+        mask = generate_hybrid_mask(
+            img_np,
             entry['screening']['flags'],
-            blur_thresh=blur_t,
-            texture_thresh=0.02,
+            blur_thresh=config['blur_thresh'],
+            texture_thresh=config['texture_thresh'],
             min_region_area=500,
-            expand_iterations=3
+            expand_iterations=config['expand'],
+            feather_radius=0
         )
 
-        coverage = np.sum(mask > 127) / mask.size * 100
-        status = "✓ GOOD" if coverage < 30 else ("○ OK" if coverage < 50 else "⚠️  TOO HIGH")
-        print(f"  blur_thresh={blur_t:3d}: {coverage:5.1f}% coverage  {status}")
-
-        Image.fromarray(mask).save(os.path.join(output_dir, f"mask_blur{blur_t}.png"))
-
-        # Save visualization
         mask_pil = Image.fromarray(mask)
-        vis = visualize_mask_overlay(image, mask_pil, alpha=0.6)
-        vis.save(os.path.join(output_dir, f"overlay_blur{blur_t}.png"))
+        mask_processed = prepare_mask_for_inpainting(mask_pil)
 
-    print(f"\n✓ Test outputs saved to: {output_dir}")
-    print("Review the overlay images - red shows what will be inpainted")
+        # Save outputs
+        mask_processed.save(f"./mask_test/mask_config{i}.png")
+
+        masked_img = create_masked_image(img_pil, mask_processed)
+        masked_img.save(f"./mask_test/masked_config{i}.png")
+
+        vis = visualize_mask_overlay(img_pil, mask_processed)
+        vis.save(f"./mask_test/overlay_config{i}.png")
+
+    print(f"\n✓ Test outputs saved to ./mask_test/")
+    print(f"  Compare overlay_config1/2/3.png to choose best parameters")
 
 
-def process_all_images(manifest_path, output_dir, blur_thresh=100, texture_thresh=0.02):
-    """Process all flagged images and generate masks"""
-
-    # Load manifest
-    with open(manifest_path, 'r') as f:
-        manifest = json.load(f)
-
-    base_dir = os.path.dirname(manifest_path)
-    images_dir = os.path.join(base_dir, "images")
-
-    # Create output directories
-    masked_images_dir = os.path.join(output_dir, "masked_images")
-    masks_dir = os.path.join(output_dir, "masks")
-    vis_dir = os.path.join(output_dir, "visualizations")
-
-    os.makedirs(masked_images_dir, exist_ok=True)
-    os.makedirs(masks_dir, exist_ok=True)
-    os.makedirs(vis_dir, exist_ok=True)
-
-    # Filter to only REPAIR images
-    repair_images = [e for e in manifest["images"] if e["screening"]["decision"] == "REPAIR"]
-
-    if not repair_images:
-        print("❌ No images flagged for REPAIR in manifest")
+def process_images(args):
+    """Main processing loop"""
+    if not os.path.exists(args.manifest):
+        print(f"❌ Manifest not found: {args.manifest}")
         return
 
+    with open(args.manifest, 'r') as f:
+        manifest = json.load(f)
+
+    # Filter for REPAIR images
+    flagged_images = [img for img in manifest['images']
+                      if img.get('screening', {}).get('decision') == "REPAIR"]
+
     print(f"\n{'=' * 60}")
-    print(f"Processing {len(repair_images)} images flagged for REPAIR")
-    print(f"Blur threshold: {blur_thresh}")
-    print(f"Texture threshold: {texture_thresh}")
+    print(f"Found {len(flagged_images)} images flagged for REPAIR")
+    print(f"Parameters:")
+    print(f"  - Blur threshold: {args.blur_thresh}")
+    print(f"  - Texture threshold: {args.texture_thresh}")
+    print(f"  - Min region area: {args.min_area} pixels")
+    print(f"  - Expand iterations: {args.expand}")
+    print(f"  - Feather radius: {args.feather}")
     print(f"{'=' * 60}\n")
 
-    output_manifest = []
-    processed_count = 0
-    skipped_count = 0
+    # Setup directories
+    out_img_dir = os.path.join(args.output, "masked_images")
+    out_mask_dir = os.path.join(args.output, "masks")
+    out_vis_dir = os.path.join(args.output, "visualizations")
+    for d in [out_img_dir, out_mask_dir, out_vis_dir]:
+        os.makedirs(d, exist_ok=True)
 
-    for entry in tqdm(repair_images, desc="Generating masks"):
-        filename = entry["filename"]
-        image_path = os.path.join(images_dir, filename)
+    results = []
+    processed = 0
+    skipped = 0
 
+    for entry in tqdm(flagged_images, desc="Generating masks"):
         try:
-            # Load image
-            image = Image.open(image_path).convert("RGB")
-            image = resize_to_multiple_of_8(image)
-            img_rgb = np.array(image)
+            filename = entry['filename']
 
-            # Generate mask
-            mask = generate_repair_mask(
-                img_rgb,
+            # Locate image
+            base_dir = os.path.dirname(args.manifest)
+            possible_paths = [
+                os.path.join(base_dir, "images", filename),
+                os.path.join(base_dir, filename)
+            ]
+            img_path = next((p for p in possible_paths if os.path.exists(p)), None)
+
+            if not img_path:
+                print(f"\n  ⚠️  Skipping {filename}: not found")
+                skipped += 1
+                continue
+
+            # Load
+            img_pil = Image.open(img_path).convert("RGB")
+            img_pil = resize_to_multiple_of_8(img_pil)
+            img_np = np.array(img_pil)
+
+            print(f"\n  {filename}:")
+
+            # Generate Mask
+            mask = generate_hybrid_mask(
+                img_np,
                 entry['screening']['flags'],
-                blur_thresh=blur_thresh,
-                texture_thresh=texture_thresh,
-                min_region_area=500,
-                expand_iterations=3
+                blur_thresh=args.blur_thresh,
+                texture_thresh=args.texture_thresh,
+                min_region_area=args.min_area,
+                expand_iterations=args.expand,
+                feather_radius=args.feather
             )
 
-            # Check coverage
-            coverage = np.sum(mask > 127) / mask.size
-
-            if coverage == 0:
-                print(f"⚠️  Skipping {filename}: empty mask")
-                skipped_count += 1
-                continue
-
-            if coverage > 0.8:
-                print(f"⚠️  Skipping {filename}: {coverage * 100:.1f}% coverage (too high)")
-                skipped_count += 1
-                continue
-
-            # Prepare mask and masked image
+            # Save outputs
             mask_pil = Image.fromarray(mask)
             mask_processed = prepare_mask_for_inpainting(mask_pil)
-            masked_image = create_masked_image(image, mask_processed, fill_mode="gray")
+            mask_processed.save(os.path.join(out_mask_dir, filename))
 
-            # Save outputs
-            base_name = os.path.splitext(filename)[0]
-            masked_image.save(os.path.join(masked_images_dir, f"{base_name}.png"))
-            mask_processed.save(os.path.join(masks_dir, f"{base_name}.png"))
+            masked_img_pil = create_masked_image(img_pil, mask_processed)
+            masked_img_pil.save(os.path.join(out_img_dir, filename))
 
-            # Visualization
-            vis = visualize_mask_overlay(image, mask_processed, alpha=0.6)
-            vis.save(os.path.join(vis_dir, f"{base_name}_overlay.png"))
+            vis_pil = visualize_mask_overlay(img_pil, mask_processed)
+            vis_pil.save(os.path.join(out_vis_dir, filename))
 
-            # Add to output manifest
-            output_manifest.append({
+            results.append({
                 "filename": filename,
-                "original_image": image_path,
-                "masked_image": os.path.join(masked_images_dir, f"{base_name}.png"),
-                "mask": os.path.join(masks_dir, f"{base_name}.png"),
-                "flags": entry['screening']['flags'],
-                "mask_coverage": float(coverage)
+                "mask_path": os.path.join("masks", filename),
+                "masked_image_path": os.path.join("masked_images", filename),
+                "flags": entry['screening']['flags']
             })
 
-            processed_count += 1
+            processed += 1
 
         except Exception as e:
-            print(f"❌ Error processing {filename}: {e}")
-            skipped_count += 1
-            continue
+            print(f"\n  ❌ Error processing {filename}: {e}")
+            import traceback
+            traceback.print_exc()
+            skipped += 1
 
     # Save output manifest
-    output_manifest_path = os.path.join(output_dir, "inpainting_manifest.json")
-    with open(output_manifest_path, 'w') as f:
-        json.dump(output_manifest, f, indent=2)
+    with open(os.path.join(args.output, "inpainting_manifest.json"), "w") as f:
+        json.dump(results, f, indent=2)
 
     print(f"\n{'=' * 60}")
-    print(f"✓ Processing complete!")
-    print(f"  Processed: {processed_count} images")
-    print(f"  Skipped: {skipped_count} images")
+    print(f"✅ Processing complete!")
+    print(f"  Processed: {processed} images")
+    print(f"  Skipped: {skipped} images")
     print(f"\nOutputs:")
-    print(f"  - Masked images: {masked_images_dir}")
-    print(f"  - Masks: {masks_dir}")
-    print(f"  - Visualizations: {vis_dir}")
-    print(f"  - Manifest: {output_manifest_path}")
-
-    if processed_count > 0:
-        avg_coverage = np.mean([m['mask_coverage'] for m in output_manifest])
-        print(f"\nAverage mask coverage: {avg_coverage * 100:.1f}%")
-
+    print(f"  - Masked images: {out_img_dir}")
+    print(f"  - Masks: {out_mask_dir}")
+    print(f"  - Visualizations: {out_vis_dir}")
+    print(f"  - Manifest: {os.path.join(args.output, 'inpainting_manifest.json')}")
     print(f"{'=' * 60}")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate masks for flagged images")
-    parser.add_argument("--manifest", required=True, help="Path to manifest.json from step 1")
-    parser.add_argument("--output", default="./inpainting_ready", help="Output directory")
-    parser.add_argument("--test", action="store_true", help="Test mode: generate masks for one image")
-    parser.add_argument("--test_image", help="Filename to test (requires --test)")
-    parser.add_argument("--blur_thresh", type=int, default=60,
-                        help="Blur threshold (higher = less sensitive)")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--manifest", required=True, help="Path to manifest.json")
+    parser.add_argument("--output", default="./inpainting_ready", help="Output folder")
+    parser.add_argument("--blur_thresh", type=int, default=100, help="Blur sensitivity (higher=less sensitive)")
     parser.add_argument("--texture_thresh", type=float, default=0.02,
-                        help="Texture threshold (higher = less sensitive)")
+                        help="Texture sensitivity (higher=less sensitive)")
+    parser.add_argument("--min_area", type=int, default=500, help="Min region size to keep (pixels)")
+    parser.add_argument("--expand", type=int, default=5, help="Boundary expansion iterations")
+    parser.add_argument("--feather", type=int, default=0, help="Edge feathering radius (0=hard edges)")
+
+    # Test mode
+    parser.add_argument("--test", action="store_true", help="Test mode: try multiple configs")
+    parser.add_argument("--test_image", help="Filename to test")
 
     args = parser.parse_args()
 
     if args.test:
         if not args.test_image:
-            print("❌ --test_image required when using --test")
-            return
-        test_single_image(args.manifest, args.test_image, output_dir="./mask_test")
+            print("❌ --test_image required for test mode")
+            print("Usage: python prepare_masks.py --manifest manifest.json --test --test_image image.jpg")
+        else:
+            test_single_image(args)
     else:
-        process_all_images(
-            args.manifest,
-            args.output,
-            blur_thresh=args.blur_thresh,
-            texture_thresh=args.texture_thresh
-        )
-
-
-if __name__ == "__main__":
-    main()
+        process_images(args)
