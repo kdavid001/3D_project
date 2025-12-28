@@ -88,5 +88,12 @@ python mask2.py \
 python ML_mask_gen.py \
   --manifest ./output_train/train/manifest.json \
   --output ./inpainting_ready \
+```
 
+```
+!python diffusion_script.py --step1_dir ./output_train/train --step2_dir ./inpainting_ready
+```
+
+```
+python rename.py --input_dir ./preprocessed/final_results
 ```
