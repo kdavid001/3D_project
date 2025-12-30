@@ -19,3 +19,6 @@ Mask_generation/__pycache__/
 others
 inpainting_ready
 .idea/
+nerf_synthetic
+output_processed
+output_train

@@ -1,290 +1,339 @@
 #!/usr/bin/env python3
 """
-Step 1: load_images.py - Image quality screening with PyIQA (BRISQUE)
+load_images_v14_fixed.py - v14 Logic + Visual Debugging + Saving
+
+Features:
+1. Saves processed images to ./output/train/
+2. DEBUG: Saves images with GREEN (Detected), RED (Rejected), and BLUE (Hull) outlines.
+3. Fixes 'Manifest Reasons' not saving correctly.
 
 Usage:
-    python load_images.py --input_dir ./raw_images --out_dir ./preprocessed --target_size 1024 --resize_mode pad
-
-Decision Logic (BRISQUE Score 0-100, Lower is Better):
-- Score > 21.0: BAD     -> Flag for REPAIR (Inpainting)
-- Score < 15.0: PERFECT -> Flag for NOVEL_VIEW (Img2Img Variations)
-- Score 15-21:  GOOD    -> Keep as is (NONE)
+    Batch:  python load_images_v14_fixed.py --input_dir ./data --mode synthetic --debug
+    Single: python load_images_v14_fixed.py --test_image ./data/r_73.png --mode synthetic --debug
 """
 
 import os
 import json
 import argparse
-from PIL import Image, ImageOps
-import numpy as np
-from tqdm import tqdm
+import shutil
 import torch
 import pyiqa
+import cv2
+import numpy as np
+from tqdm import tqdm
 
+# --- CONFIGURATION ---
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png"}
 
-# -------------------------------------------------------------------------
-# GLOBAL MODEL INITIALIZATION
-# -------------------------------------------------------------------------
-print("⏳ Loading PyIQA (BRISQUE) model...")
-DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+THRESHOLDS = {
+    "natural": {
+        "BAD_LIMIT": 40.0,
+        "GOOD_LIMIT": 70.0,
+        "USE_CROP": False,
+        "CHECK_HOLES": True,
+        "HOLE_THRESHOLD": 0.05,
+        "SAT_MIN": 5.0,
+        "SAT_MAX": 170.0
+    },
+    "synthetic": {
+        "BAD_LIMIT": 65.0,
+        "GOOD_LIMIT": 71.0,
+        "USE_CROP": True,
+        "CHECK_HOLES": True,
+        "HOLE_THRESHOLD": 0.01,  # Ignore holes smaller than 1%
+        "SAT_MIN": 0.0,
+        "SAT_MAX": 255.0
+    }
+}
+
+# --- MODEL LOADER ---
+print("⏳ Initializing MUSIQ Model...")
+if torch.cuda.is_available():
+    DEVICE = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    DEVICE = torch.device("mps")
+else:
+    DEVICE = torch.device("cpu")
 
 try:
-    # Initialize metric once
-    IQA_MODEL = pyiqa.create_metric('brisque', device=DEVICE)
-    print(f"✅ Model loaded on {DEVICE}")
+    IQA_MODEL = pyiqa.create_metric('musiq', device=DEVICE)
+    print(f"✅ MUSIQ Loaded on {DEVICE}")
 except Exception as e:
-    print(f"❌ Error loading PyIQA model: {e}")
+    print(f"❌ Error: {e}")
     exit(1)
 
 
-def is_image_file(filename):
-    return os.path.splitext(filename.lower())[1] in SUPPORTED_EXTS
+def check_saturation(img_path, min_sat, max_sat):
+    img = cv2.imread(img_path)
+    if img is None: return "PASS", 0.0
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    s_channel = hsv[:, :, 1]
+    mask = np.all(img != [0, 0, 0], axis=2)
+    if np.sum(mask) == 0: return "PASS", 0.0
+    avg_sat = np.mean(s_channel[mask])
+    if avg_sat > max_sat:
+        return "HIGH", avg_sat
+    elif avg_sat < min_sat:
+        return "LOW", avg_sat
+    return "PASS", avg_sat
 
 
-def load_images_list(input_dir):
-    files = sorted([
-        os.path.join(input_dir, f)
-        for f in os.listdir(input_dir)
-        if is_image_file(f)
-    ])
-    return files
+def detect_holes_natural(img_path, threshold):
+    img = cv2.imread(img_path)
+    if img is None: return False, ""
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, 5, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours: return False, ""
+    largest_contour = max(contours, key=cv2.contourArea)
+    hull = cv2.convexHull(largest_contour)
+    hull_mask = np.zeros_like(gray)
+    cv2.drawContours(hull_mask, [hull], -1, 255, thickness=cv2.FILLED)
+    holes = cv2.bitwise_xor(hull_mask, binary)
+    holes = cv2.bitwise_and(holes, hull_mask)
+    hull_area = np.sum(hull_mask > 0)
+    if hull_area == 0: return False, ""
+    ratio = np.sum(holes > 0) / hull_area
+    return ratio > threshold, f"Ratio: {ratio:.1%}"
 
 
-def resize_image(img: Image.Image, target_size, mode="pad"):
-    if mode == "none" or target_size is None:
-        return img
-
-    if isinstance(target_size, int):
-        target_w = target_h = target_size
-    else:
-        target_w, target_h = target_size
-
-    if mode == "stretch":
-        return img.resize((target_w, target_h), Image.LANCZOS)
-
-    w, h = img.size
-    if mode == "pad":
-        img.thumbnail((target_w, target_h), Image.LANCZOS)
-        pad_w = target_w - img.width
-        pad_h = target_h - img.height
-        left = pad_w // 2
-        top = pad_h // 2
-        right = pad_w - left
-        bottom = pad_h - top
-        return ImageOps.expand(img, border=(left, top, right, bottom), fill=(0, 0, 0))
-    elif mode == "crop":
-        min_side = min(w, h)
-        left = (w - min_side) // 2
-        top = (h - min_side) // 2
-        cropped = img.crop((left, top, left + min_side, top + min_side))
-        return cropped.resize((target_w, target_h), Image.LANCZOS)
-    else:
-        raise ValueError("Unknown resize mode: " + str(mode))
-
-
-def ensure_dir(path):
-    if not os.path.exists(path):
-        os.makedirs(path, exist_ok=True)
-
-
-def get_image_score(image_path):
+def detect_holes_synthetic_debug(img_path, min_area_ratio, debug_dir=None, save_name=None):
     """
-    Computes the BRISQUE score.
-    Returns: float (0.0 best - 100.0 worst)
+    v14 Logic with FULL Visual Debugging (Green=Found, Red=Rejected).
     """
+    img = cv2.imread(img_path)
+    if img is None: return False, "None"
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, 5, 255, cv2.THRESH_BINARY)
+
+    # Denoise
+    kernel = np.ones((3, 3), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
+
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours: return False, "Empty"
+    largest_contour = max(contours, key=cv2.contourArea)
+    obj_area = cv2.contourArea(largest_contour)
+    if obj_area < 100: return False, "Too Small"
+
+    debug_img = img.copy() if debug_dir else None
+    detected_corruption = False
+    reason = "Natural"
+
+    # --- HULL CALCULATION ---
+    hull = cv2.convexHull(largest_contour)
+    hull_mask = np.zeros_like(gray)
+    cv2.drawContours(hull_mask, [hull], -1, 255, thickness=cv2.FILLED)
+
+    # Draw Hull in BLUE (for context)
+    if debug_img is not None:
+        cv2.drawContours(debug_img, [hull], -1, (255, 0, 0), 1)
+
+    # --- A. CHECK INTERNAL HOLES ---
+    holes_mask = cv2.bitwise_xor(hull_mask, binary)
+    holes_mask = cv2.bitwise_and(holes_mask, hull_mask)
+    hole_cnts, _ = cv2.findContours(holes_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for c in hole_cnts:
+        area = cv2.contourArea(c)
+        if area / obj_area < min_area_ratio: continue
+        x, y, w, h = cv2.boundingRect(c)
+        solidity = area / (w * h)
+
+        if solidity > 0.85:
+            detected_corruption = True
+            reason = f"Internal Block (Solidity: {solidity:.2f})"
+            if debug_img is not None:
+                cv2.rectangle(debug_img, (x, y), (x + w, y + h), (0, 255, 0), 2)  # GREEN
+        else:
+            if debug_img is not None:
+                cv2.drawContours(debug_img, [c], -1, (0, 0, 255), 2)  # RED (Rejected)
+
+    # --- B. CHECK EDGE HOLES ---
+    defects_mask = cv2.bitwise_xor(hull_mask, binary)
+    defects_mask = cv2.bitwise_and(defects_mask, hull_mask)
+    defect_cnts, _ = cv2.findContours(defects_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for c in defect_cnts:
+        area = cv2.contourArea(c)
+        if area / obj_area < min_area_ratio: continue
+        x, y, w, h = cv2.boundingRect(c)
+        solidity = area / (w * h)
+
+        if solidity > 0.90:
+            detected_corruption = True
+            reason = f"Edge Cut (Solidity: {solidity:.2f})"
+            if debug_img is not None:
+                cv2.rectangle(debug_img, (x, y), (x + w, y + h), (0, 255, 0), 2)  # GREEN
+        else:
+            if debug_img is not None:
+                cv2.drawContours(debug_img, [c], -1, (0, 0, 255), 2)  # RED (Rejected)
+
+    if debug_dir:
+        fname = save_name if save_name else os.path.basename(img_path)
+        cv2.imwrite(os.path.join(debug_dir, fname), debug_img)
+
+    return detected_corruption, reason
+
+
+def crop_to_content(img_path):
+    img = cv2.imread(img_path)
+    if img is None: return None
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 5, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours: return img_path
+    c = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(c)
+    pad = 10
+    h_img, w_img = img.shape[:2]
+    x = max(0, x - pad);
+    y = max(0, y - pad)
+    w = min(w_img - x, w + 2 * pad);
+    h = min(h_img - y, h + 2 * pad)
+    cropped = img[y:y + h, x:x + w]
+    temp_path = img_path.replace(".png", "_temp_crop.png")
+    cv2.imwrite(temp_path, cropped)
+    return temp_path
+
+
+def get_quality_score(img_path, use_crop):
+    target = img_path
+    if use_crop:
+        cropped = crop_to_content(img_path)
+        if cropped: target = cropped
     with torch.no_grad():
-        score = IQA_MODEL(image_path)
+        score = IQA_MODEL(target)
+    if use_crop and target != img_path and os.path.exists(target):
+        os.remove(target)
     return score.item()
 
 
-def screen_image_brisque(score):
-    """
-    Decision Logic for Pipeline
-    """
-    # --- THRESHOLDS ---
-    # > 21 is clearly bad.
-    # < 15 is exceptionally high quality (candidates for novel view generation).
-    BAD_QUALITY_THRESHOLD = 21.0
-    PERFECT_QUALITY_THRESHOLD = 15.0
-
-    flags = []
-    decision = "NONE"
-
-    if score > BAD_QUALITY_THRESHOLD:
-        flags.append("poor_quality_brisque")
-        decision = "REPAIR"
-    elif score < PERFECT_QUALITY_THRESHOLD:
-        flags.append("perfect_quality_brisque")
-        decision = "NOVEL_VIEW"
-
-    return {
-        "needs_diffusion": decision != "NONE",
-        "flags": flags,
-        "decision": decision,
-        "score": score
-    }
-
-
-def process_images(args):
-    """Main processing function"""
+def process_batch(args):
     input_dir = args.input_dir
-    out_dir = args.out_dir
-    target_size = args.target_size
-    resize_mode = args.resize_mode
+    mode = args.mode
+    settings = THRESHOLDS[mode]
+    search_dir = os.path.join(input_dir, "train")
+    if not os.path.exists(search_dir): search_dir = input_dir
 
-    potential_dir = os.path.join(input_dir, "images")
-    if os.path.exists(potential_dir):
-        input_images_dir = potential_dir
-    else:
-        input_images_dir = input_dir
+    files = [f for f in os.listdir(search_dir) if f.lower().endswith(tuple(SUPPORTED_EXTS))]
+    files.sort()
 
-    ensure_dir(out_dir)
-    images_out_dir = os.path.join(out_dir, "images")
-    ensure_dir(images_out_dir)
+    if not os.path.exists(args.out_dir): os.makedirs(args.out_dir)
+    processed_dir = os.path.join(args.out_dir, "train")
+    if not os.path.exists(processed_dir): os.makedirs(processed_dir)
 
-    files = load_images_list(input_images_dir)
-    if not files:
-        print(f"No images found in {input_images_dir}. Supported: {SUPPORTED_EXTS}")
-        return
+    debug_dir = None
+    if args.debug:
+        debug_dir = os.path.join(args.out_dir, "debug_visuals")
+        if not os.path.exists(debug_dir): os.makedirs(debug_dir)
 
-    manifest = {"images": []}
+    print(f"📂 Scanning {len(files)} images...")
 
-    print(f"Processing {len(files)} images...")
+    manifest_data = []
 
-    for path in tqdm(files, desc="Analyzing"):
-        base = os.path.basename(path)
+    for fname in tqdm(files):
+        img_path = os.path.join(search_dir, fname)
+        decision = "NONE"
+        note = ""
+        score = 0.0
+
         try:
-            # 1. Load and Resize
-            img = Image.open(path).convert("RGB")
-            proc_img = resize_image(img, target_size, resize_mode) if target_size else img
+            # 1. Holes
+            if settings['CHECK_HOLES']:
+                is_artificial = False
+                reason = ""
+                if mode == "synthetic":
+                    is_artificial, reason = detect_holes_synthetic_debug(img_path, settings['HOLE_THRESHOLD'],
+                                                                         debug_dir)
+                else:
+                    is_artificial, reason = detect_holes_natural(img_path, settings['HOLE_THRESHOLD'])
 
-            # 2. Save processed image
-            out_path = os.path.join(images_out_dir, base)
-            proc_img.save(out_path)
+                if is_artificial:
+                    decision = "REPAIR"
+                    note = reason
 
-            # 3. Compute Score
-            brisque_score = get_image_score(out_path)
+            # 2. Saturation
+            if decision == "NONE":
+                sat_status, sat_val = check_saturation(img_path, settings['SAT_MIN'], settings['SAT_MAX'])
+                if sat_status == "HIGH":
+                    decision = "REPAIR"
+                    note = f"Oversaturated ({sat_val:.1f})"
 
-            # 4. Make Decision
-            screening_result = screen_image_brisque(brisque_score)
+            # 3. Quality
+            if decision == "NONE":
+                score = get_quality_score(img_path, settings['USE_CROP'])
+                score = round(score, 2)
+                if score < settings['BAD_LIMIT']:
+                    decision = "REPAIR"
+                    note = f"Blurry/Noisy (Score {score})"
 
-            entry = {
-                "filename": base,
-                "quality_score": brisque_score,
-                "screening": screening_result
-            }
+            # Copy processed image
+            shutil.copy(img_path, os.path.join(processed_dir, fname))
 
-            manifest["images"].append(entry)
+            manifest_data.append({"filename": fname, "score": score, "decision": decision, "note": note})
 
         except Exception as e:
-            print(f"Error processing {base}: {e}")
-            continue
+            print(f"⚠️ Error {fname}: {e}")
 
-    # Count stats
-    num_repair = sum(1 for e in manifest["images"] if e["screening"]["decision"] == "REPAIR")
-    num_novel = sum(1 for e in manifest["images"] if e["screening"]["decision"] == "NOVEL_VIEW")
-    num_none = len(manifest["images"]) - num_repair - num_novel
+    with open(os.path.join(args.out_dir, "manifest.json"), 'w') as f:
+        json.dump(manifest_data, f, indent=2)
 
-    print(f"\n{'=' * 60}")
-    print(f"Screening Results (BRISQUE Metric):")
-    print(f"  Total images: {len(manifest['images'])}")
-    print(f"  REPAIR (> 21.0):      {num_repair} (Bad quality)")
-    print(f"  NOVEL_VIEW (< 15.0):  {num_novel}  (Perfect quality)")
-    print(f"  NONE (15.0 - 21.0):   {num_none}   (Standard quality)")
-    print(f"{'=' * 60}\n")
-
-    # Save manifest
-    manifest_path = os.path.join(out_dir, "manifest.json")
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-
-    print(f"✓ Manifest saved to: {manifest_path}")
-    print(f"✓ Processed images saved to: {images_out_dir}")
-
-    if num_repair > 0:
-        print(f"\n[!] Run prepare_masks.py to generate masks for the {num_repair} REPAIR images.")
-
-    if num_novel > 0:
-        print(f"[!] {num_novel} images marked for NOVEL_VIEW generation.")
-
-    return manifest
+    repairs = len([x for x in manifest_data if x['decision'] == 'REPAIR'])
+    print(f"\n📊 SUMMARY: Detected {repairs} / {len(files)}")
+    print(f"✅ Processed images: {processed_dir}")
 
 
-def test_single_image(image_path, target_size=None, resize_mode="pad"):
-    """
-    Test a single image with PyIQA
-    """
-    print(f"\n{'=' * 60}")
-    print(f"SINGLE IMAGE ANALYSIS (PyIQA BRISQUE)")
-    print(f"{'=' * 60}")
-    print(f"Image: {image_path}\n")
+def test_single_image(image_path, mode, debug=False, out_dir="./output"):
+    if not os.path.exists(image_path): return print("❌ Error: Not found")
+    settings = THRESHOLDS[mode]
+    print(f"\n🔎 Analyzing: {image_path}")
 
-    try:
-        img = Image.open(image_path).convert("RGB")
-        print(f"Original Size: {img.size}")
+    debug_dir = out_dir if debug else None
+    if debug_dir and not os.path.exists(debug_dir): os.makedirs(debug_dir)
 
-        proc_img = resize_image(img, target_size, resize_mode) if target_size else img
-
-        # Temp save for inference
-        temp_path = "temp_test_image_iqa.png"
-        proc_img.save(temp_path)
-
-        score = get_image_score(temp_path)
-
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-
-        result = screen_image_brisque(score)
-
-        print("\n" + "-" * 60)
-        print(f"QUALITY SCORE: {score:.4f}")
-        print("-" * 60)
-        print("Scale: 0 (Best) to 100 (Worst)")
-        print("Thresholds: <15 (Perfect), >21 (Bad)")
-
-        print(f"\nDecision: {result['decision']}")
-
-        if result['decision'] == "REPAIR":
-            print("❌ Status: BAD QUALITY")
-            print("   Action: Needs Diffusion Repair")
-        elif result['decision'] == "NOVEL_VIEW":
-            print("✨ Status: PERFECT QUALITY")
-            print("   Action: Generate Novel Views")
+    if settings['CHECK_HOLES']:
+        is_artificial = False
+        reason = ""
+        if mode == "synthetic":
+            # Save single debug image
+            is_artificial, reason = detect_holes_synthetic_debug(image_path, settings['HOLE_THRESHOLD'], debug_dir,
+                                                                 "debug_single.png")
         else:
-            print("✅ Status: GOOD")
-            print("   Action: Keep as is")
+            is_artificial, reason = detect_holes_natural(image_path, settings['HOLE_THRESHOLD'])
 
-        print(f"\n{'=' * 60}\n")
-
-    except Exception as e:
-        print(f"❌ Error analyzing image: {e}")
-        import traceback
-        traceback.print_exc()
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Image quality screening using PyIQA")
-    parser.add_argument("--input_dir", help="Folder with raw images")
-    parser.add_argument("--out_dir", help="Folder to write output")
-    parser.add_argument("--target_size", type=int, default=None, help="Resize to square size (e.g. 1024)")
-    parser.add_argument("--resize_mode", choices=["pad", "crop", "stretch", "none"], default="pad")
-
-    parser.add_argument("--test", action="store_true", help="Test mode: analyze a single image")
-    parser.add_argument("--test_image", help="Path to single image to test")
-
-    args = parser.parse_args()
-
-    if args.test:
-        if not args.test_image:
-            print("❌ --test_image required when using --test")
+        print(f"⚫ Geometry Check: {reason}")
+        if is_artificial:
+            print("🚩 Result: REPAIR (Geometry)")
             return
-        test_single_image(args.test_image, args.target_size, args.resize_mode)
+
+    sat_status, sat_val = check_saturation(image_path, settings['SAT_MIN'], settings['SAT_MAX'])
+    print(f"🎨 Saturation: {sat_val:.1f}")
+    if sat_status == "HIGH":
+        print("🚩 Result: REPAIR (Oversaturated)")
+        return
+
+    score = get_quality_score(image_path, settings['USE_CROP'])
+    print(f"📊 Quality Score: {score:.2f}")
+    if score < settings['BAD_LIMIT']:
+        print("🚩 Result: REPAIR (Blurry)")
     else:
-        if not args.input_dir or not args.out_dir:
-            print("❌ --input_dir and --out_dir required for batch processing")
-            return
-        process_images(args)
+        print("✅ Result: PASS")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["natural", "synthetic"], default="synthetic")
+    parser.add_argument("--input_dir", type=str)
+    parser.add_argument("--test_image", type=str)
+    parser.add_argument("--out_dir", type=str, default="./output")
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
+
+    if args.test_image:
+        test_single_image(args.test_image, args.mode, args.debug, args.out_dir)
+    elif args.input_dir:
+        process_batch(args)
+    else:
+        print("❌ Provide --input_dir or --test_image")

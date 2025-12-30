@@ -3,9 +3,9 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/Original Images" />
-      <excludeFolder url="file://$MODULE_DIR$/inpainting_ready" />
       <excludeFolder url="file://$MODULE_DIR$/nsenv" />
       <excludeFolder url="file://$MODULE_DIR$/others" />
+      <excludeFolder url="file://$MODULE_DIR$/inpainting_ready_train" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
