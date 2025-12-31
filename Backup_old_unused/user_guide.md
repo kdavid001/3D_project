@@ -87,7 +87,7 @@ python process_file.py --test_image ./output_processed/lego/train/r_82.png
 python process_file.py \
   --mode synthetic \
   --input_dir ./output_train/lego \
-  --out_dir ./output_processed/lego \
+  --out_dir ./output_processed/lego
   --debug
 ```
 
@@ -144,7 +144,7 @@ python mask2.py \
 
 ```bash
 python ML_mask_gen.py \
-  --manifest ./output_processed/lego/manifest.json \
+  --manifest ./output_train/train/manifest.json \
   --output ./inpainting_ready
 ```
 

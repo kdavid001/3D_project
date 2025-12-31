@@ -8,14 +8,14 @@ others/some liinks.txt
 others/Tutorial Video.mp4
 others/YTDown.com_YouTube_TUM-AI-Lecture-Series-The-3D-Gaussian-Sp_Media_DjOqkVIlEGY_001_720p.mp4
 others/tandt_db
-Mask_generation/images
-Mask_generation/masks
-Mask_generation/output
-Mask_generation/test_output
-Mask_generation/image_flags.json
-Mask_generation/mask.py
-Mask_generation/manifest.json
-Mask_generation/__pycache__/
+Backup_old_unused/Mask_generation/images
+Backup_old_unused/Mask_generation/masks
+Backup_old_unused/Mask_generation/output
+Backup_old_unused/Mask_generation/test_output
+Backup_old_unused/Mask_generation/image_flags.json
+Backup_old_unused/Mask_generation/mask.py
+Backup_old_unused/Mask_generation/manifest.json
+Backup_old_unused/Mask_generation/__pycache__/
 others
 inpainting_ready
 .idea/

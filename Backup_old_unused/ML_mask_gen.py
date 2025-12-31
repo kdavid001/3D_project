@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Step 2: prepare_masks.py - Hybrid Masking (Restoration + Radiometric)
-
-Updates:
-- CRITICAL FIX: Excludes pure black background pixels from the mask.
-  (Prevents the script from trying to "repair" the empty void).
+Step 2: prepare_masks.py - Auto-generate masks using Restoration Difference
 
 Usage:
-    python prepare_masks.py --manifest ./output/manifest.json --output ./inpainting_ready
+    python prepare_masks.py --manifest ./preprocessed/manifest.json --output ./inpainting_ready --sensitivity 30
+
+Method: "Restoration Difference"
+1. Creates a "Clean" version of the image using strong denoising/smoothing.
+2. Subtracts Clean from Original to find "Defects" (Noise, Artifacts, Blur).
+3. Thresholds this difference to create the Mask.
 """
 
 import os
@@ -17,11 +18,6 @@ import numpy as np
 from PIL import Image
 import cv2
 from tqdm import tqdm
-
-# --- CONFIGURATION FROM DETECTOR ---
-SAT_THRESHOLD = 240  # Mask pixels deeper than this
-EXP_MAX_THRESHOLD = 245  # Mask pixels brighter than this
-EXP_MIN_THRESHOLD = 15  # Mask pixels darker than this
 
 
 def prepare_mask_for_inpainting(mask_pil):
@@ -59,11 +55,7 @@ def visualize_mask_overlay(image_pil, mask_pil, alpha=0.6):
     mask_binary = (mask > 0.5).astype("float32")
 
     overlay = image.copy()
-    # Red channel boost for masked areas
-    overlay[:, :, 0] = np.clip(overlay[:, :, 0] + mask_binary * 0.8, 0, 1)
-    # Dim other channels to make red pop
-    overlay[:, :, 1] = overlay[:, :, 1] * (1 - mask_binary * 0.3)
-    overlay[:, :, 2] = overlay[:, :, 2] * (1 - mask_binary * 0.3)
+    overlay[:, :, 0] = np.clip(overlay[:, :, 0] + mask_binary * 0.7, 0, 1)
 
     result = image * (1 - alpha) + overlay * alpha
     return Image.fromarray((np.clip(result, 0, 1) * 255).astype("uint8"))
@@ -78,67 +70,55 @@ def resize_to_multiple_of_8(pil_img):
 
 
 # -------------------------------------------------------------------------
-# CORE LOGIC: HYBRID MASK GENERATION
+# THE CORE ALGORITHM: RESTORATION DIFFERENCE
 # -------------------------------------------------------------------------
-def generate_hybrid_mask(img_rgb, sensitivity=30, expand_iterations=4):
+def generate_restoration_mask(img_rgb, sensitivity=25, expand_iterations=4):
     """
-    Combines 'Restoration Difference' (for Noise) with 'Radiometric Thresholding' (for Clipping).
-    NOW IGNORES BACKGROUND.
+    Generates a mask by comparing the original image to a "Restored" version.
+
+    Args:
+        img_rgb: Input image (numpy array)
+        sensitivity: Difference threshold (Lower = More sensitive/Larger Mask)
+        expand_iterations: How much to grow the mask to cover edges
     """
-    # --- 1. RESTORATION MASK (Catches Noise/Grain) ---
+    # 1. Create "Restored" Reference
+    # We use Non-Local Means Denoising to act as our "Blind Restoration" model.
+    # It aggressively smooths noise and textures while trying to keep edges.
+    # h=10 is strength (higher = smoother = bigger difference = bigger mask)
     clean = cv2.fastNlMeansDenoisingColored(img_rgb, None, 10, 10, 7, 21)
+
+    # 2. Calculate Difference (Artifact Map)
+    # This highlights Grain, JPEG blocks, and Sensor Noise
     diff = cv2.absdiff(img_rgb, clean)
+
+    # Convert difference to grayscale intensity
     diff_gray = cv2.cvtColor(diff, cv2.COLOR_RGB2GRAY)
-    _, mask_restoration = cv2.threshold(diff_gray, sensitivity, 255, cv2.THRESH_BINARY)
 
-    # --- 2. RADIOMETRIC MASK (Catches Deep Fried/Flash Bang) ---
-    hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
-    h, s, v = cv2.split(hsv)
+    # 3. Create Binary Mask
+    # If the difference is high (pixel was noisy), mark it white.
+    # sensitivity is the cutoff (0-255).
+    _, mask = cv2.threshold(diff_gray, sensitivity, 255, cv2.THRESH_BINARY)
 
-    # Mask A: Saturation Clipping (Neon pixels)
-    _, mask_sat = cv2.threshold(s, SAT_THRESHOLD, 255, cv2.THRESH_BINARY)
-
-    # Mask B: Exposure Clipping (Whiteout or Crushed Black)
-    _, mask_bright = cv2.threshold(v, EXP_MAX_THRESHOLD, 255, cv2.THRESH_BINARY)
-    _, mask_dark = cv2.threshold(v, EXP_MIN_THRESHOLD, 255, cv2.THRESH_BINARY_INV)
-
-    # Combine Radiometric Masks
-    mask_radio = cv2.bitwise_or(mask_sat, mask_bright)
-    mask_radio = cv2.bitwise_or(mask_radio, mask_dark)
-
-    # --- 3. COMBINE EVERYTHING ---
-    final_mask = cv2.bitwise_or(mask_restoration, mask_radio)
-
-    # --- CRITICAL FIX: EXCLUDE BACKGROUND ---
-    # Identify pixels that are pure black (or extremely close to it)
-    # This prevents the "mask_dark" logic from selecting the empty void.
-    lower_black = np.array([0, 0, 0], dtype=np.uint8)
-    upper_black = np.array([2, 2, 2], dtype=np.uint8)  # Tolerance of 2 for compression artifacts
-    bg_mask = cv2.inRange(img_rgb, lower_black, upper_black)
-
-    # Subtract the Background from the Final Mask
-    # Logic: final_mask AND (NOT background)
-    final_mask = cv2.bitwise_and(final_mask, cv2.bitwise_not(bg_mask))
-
-    # --- 4. CLEANUP (Morphology) ---
-    # Remove speckles
+    # 4. Clean Up (Morphology)
+    # Remove tiny speckles (noise that is too small to care about)
     kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_OPEN, kernel_small)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_small)
 
-    # Fill holes
+    # Fill small holes inside big blobs
     kernel_med = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    final_mask = cv2.morphologyEx(final_mask, cv2.MORPH_CLOSE, kernel_med)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_med)
 
-    # Expand coverage (Dilate)
+    # 5. Expand (Dilate)
+    # Noise/Blur usually has a "halo" around it. We expand the mask to catch it.
     if expand_iterations > 0:
         kernel_expand = np.ones((3, 3), np.uint8)
-        final_mask = cv2.dilate(final_mask, kernel_expand, iterations=expand_iterations)
+        mask = cv2.dilate(mask, kernel_expand, iterations=expand_iterations)
 
-    return final_mask
+    return mask
 
 
 def process_images(args):
-    """Main Loop"""
+    """Main Loop with Deduplication"""
     if not os.path.exists(args.manifest):
         print(f"❌ Manifest not found: {args.manifest}")
         return
@@ -146,18 +126,19 @@ def process_images(args):
     with open(args.manifest, 'r') as f:
         manifest = json.load(f)
 
-    # Filter for REPAIR images only
-    flagged_images = [img for img in manifest
-                      if img.get('decision') == "REPAIR"]
+    # Filter for REPAIR images
+    flagged_images = [img for img in manifest['images']
+                      if img.get('screening', {}).get('decision') == "REPAIR"]
 
-    if not flagged_images:
-        print("✅ No images marked for REPAIR. Exiting.")
-        return
+    # Deduplicate (Keep the one with most info/flags if duplicates exist)
+    unique_images = {}
+    for entry in flagged_images:
+        unique_images[entry['filename']] = entry
+    processing_queue = list(unique_images.values())
 
     print(f"\n{'=' * 60}")
-    print(f"Processing {len(flagged_images)} flagged images...")
-    print(f"Method: Hybrid (Restoration Diff + Radiometric Cutoff)")
-    print(f"NOTE: Excluding Black Backgrounds (0,0,0)")
+    print(f"Processing {len(processing_queue)} images using Restoration Difference")
+    print(f"Sensitivity: {args.sensitivity} (Lower = More Aggressive)")
     print(f"{'=' * 60}\n")
 
     # Setup directories
@@ -170,47 +151,44 @@ def process_images(args):
     results = []
     processed = 0
 
-    for entry in tqdm(flagged_images, desc="Generating masks"):
+    for entry in tqdm(processing_queue, desc="Generating masks"):
         try:
             filename = entry['filename']
+            # Force PNG output
             base_name = os.path.splitext(filename)[0]
             out_filename = f"{base_name}.png"
 
-            # Locate image (Handle manifest path variations)
+            # Locate image
             base_dir = os.path.dirname(args.manifest)
-
-            # Try to find the file in typical locations
             possible_paths = [
-                os.path.join(base_dir, "processed_train", filename),
-                os.path.join(base_dir, filename),
+                os.path.join(base_dir, "images", filename),
+                os.path.join(base_dir, filename)
             ]
-
             img_path = next((p for p in possible_paths if os.path.exists(p)), None)
 
-            if not img_path:
-                if os.path.exists(filename):
-                    img_path = filename
-                else:
-                    print(f"⚠️ Could not find image: {filename}")
-                    continue
+            if not img_path: continue
 
             # Load
             img_pil = Image.open(img_path).convert("RGB")
             img_pil = resize_to_multiple_of_8(img_pil)
             img_np = np.array(img_pil)
 
-            # --- GENERATE MASK ---
-            mask = generate_hybrid_mask(
+            # --- GENERATE MASK (New Method) ---
+            mask = generate_restoration_mask(
                 img_np,
                 sensitivity=args.sensitivity,
                 expand_iterations=args.expand
             )
 
             # --- FALLBACK CHECK ---
+            # If mask is empty but BRISQUE complained, perform global fallback?
+            # Or just lower sensitivity?
             coverage = np.sum(mask > 0) / mask.size
-            if coverage < 0.01:
-                # Retry with extreme sensitivity (but still ignoring bg)
-                mask = generate_hybrid_mask(img_np, sensitivity=10, expand_iterations=6)
+            if coverage < 0.05:  # Less than 5% coverage
+                print(f"\n  ⚠️ Low coverage ({coverage:.1%}) for {filename}. Boosting sensitivity...")
+                # Retry with higher aggression (lower threshold)
+                mask = generate_restoration_mask(img_np, sensitivity=args.sensitivity - 10,
+                                                 expand_iterations=args.expand + 2)
 
             # Save
             mask_pil = Image.fromarray(mask)
@@ -225,17 +203,16 @@ def process_images(args):
 
             results.append({
                 "filename": out_filename,
-                "original_path": img_path,
-                "mask_path": os.path.join(out_mask_dir, out_filename),
-                "masked_image_path": os.path.join(out_img_dir, out_filename),
-                "reason": entry.get('note', 'Unknown')
+                "mask_path": os.path.join("masks", out_filename),
+                "masked_image_path": os.path.join("masked_images", out_filename),
+                "flags": entry['screening']['flags']
             })
             processed += 1
 
         except Exception as e:
             print(f"Error processing {filename}: {e}")
 
-    # Save output manifest for the Inpainter to use
+    # Save output manifest
     with open(os.path.join(args.output, "inpainting_manifest.json"), "w") as f:
         json.dump(results, f, indent=2)
 
@@ -245,8 +222,9 @@ def process_images(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", required=True, help="Path to manifest.json generated by load_images")
+    parser.add_argument("--manifest", required=True, help="Path to manifest.json")
     parser.add_argument("--output", default="./inpainting_ready", help="Output folder")
+    # Sensitivity: Lower number (e.g. 15) = detect subtle noise. Higher (e.g. 50) = only heavy artifacts.
     parser.add_argument("--sensitivity", type=int, default=30, help="Diff threshold (0-255). Lower = Bigger Mask.")
     parser.add_argument("--expand", type=int, default=4, help="Dilate iterations")
 
