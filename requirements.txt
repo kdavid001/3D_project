@@ -16,3 +16,17 @@ pyiqa
 sklearn-image
 invisible-watermark
 # pip install --upgrade diffusers transformers accelerate
+simple-lama-inpainting
+
+# --- Image restoration / enhancement ---
+basicsr
+facexlib
+gfpgan
+realesrgan
+rembg
+onnxruntime-gpu
+
+# Note:
+# The command `python setup.py develop` is a local editable install step
+# and should NOT be included in requirements.txt.
+# Real-ESRGAN dependencies are covered by `realesrgan` and `basicsr`.

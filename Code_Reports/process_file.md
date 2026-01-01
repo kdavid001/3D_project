@@ -1,15 +1,19 @@
-# 🛡️ Radiometric & Quality Integrity Screener
+# 🛡️ Radiometric Screener & Novel View Router
 
 ## 📌 Overview
-`load_images_v24.py` is an automated quality control pipeline designed to screen datasets for **Sensor & Optical Failures** before they enter 3D reconstruction pipelines (NeRF, Gaussian Splatting).
+`load_images_v25.py` is an automated quality control and routing pipeline designed to screen datasets for **Sensor & Optical Failures** before they enter 3D reconstruction pipelines (NeRF, Gaussian Splatting).
 
-Because passive reconstruction algorithms rely on consistent feature extraction, images with **Radiometric Anomalies** (Saturation Clipping, Exposure Failure) or **Optical Degradation** (Blur, Noise) frequently cause "floaters" or geometry collapse in the final model. This script filters out these defects using a **"Three-Pillar"** detection logic.
+Because passive reconstruction algorithms rely on consistent feature extraction, images with **Radiometric Anomalies** (Saturation Clipping, Exposure Failure) or **Optical Degradation** (Blur, Noise) frequently cause "floaters" or geometry collapse in the final model.
+
+This script performs two critical tasks:
+1.  **Screening:** Filters out defects using a **"Three-Pillar"** detection logic.
+2.  **Routing:** Automatically tags healthy images for **Novel View Augmentation** (`NOVEL_VIEW`) and defective images for **Inpainting** (`REPAIR`).
 
 ---
 
 ## ⚙️ The "Three-Pillar" Logic
 
-The script evaluates every image against three distinct failure modes. If **ANY** of these checks fail, the image is flagged for `REPAIR` (Inpainting) or exclusion.
+The script evaluates every image against three distinct failure modes. If **ANY** of these checks fail, the image is flagged for repair.
 
 ### **Pillar 1: Radiometric Saturation (Color Integrity)**
 * **Hypothesis:** When a sensor's color channel clips (reaches 255), texture details are lost, leaving "flat" neon patches that cannot be feature-matched.
@@ -36,6 +40,17 @@ The script evaluates every image against three distinct failure modes. If **ANY*
     * This model aligns with human perception of sharpness and clarity.
 * **Thresholds:**
     * **Fail:** MUSIQ Score < 40 (Natural) or < 65 (Synthetic).
+
+---
+
+## 🔀 Auto-Routing Logic
+
+Unlike previous versions which simply "Accepted" or "Rejected" images, v25 automatically assigns a workflow decision to every image:
+
+| Condition | Decision Tag | Downstream Action |
+| :--- | :--- | :--- |
+| **FAILED any Pillar** | `REPAIR` | Sent to **Inpainting Pipeline** to fix artifacts. |
+| **PASSED all Pillars** | `NOVEL_VIEW` | Sent to **Img2Img Pipeline** to generate new camera angles (Data Augmentation). |
 
 ---
 
@@ -84,7 +99,7 @@ pip install torch pyiqa opencv-python numpy matplotlib tqdm
 To scan a dataset (e.g., the output from the corruption generator):
 
 ```bash
-python load_images_v24.py \
+python load_images_v25.py \
   --input_dir ./output_data/lego \
   --mode synthetic \
   --out_dir ./preprocessed \
@@ -106,14 +121,22 @@ python load_images_v24.py \
 
 ## 📂 Output Artifacts
 
-1. **`manifest.json`**: The master record used by downstream steps (Inpainting).
+1. **`manifest.json`**: The master record used by downstream steps.
 ```json
-{
-  "filename": "r_12.png",
-  "score": 32.5,
-  "decision": "REPAIR",
-  "note": "Low Quality (32.5 < 65.0)"
-}
+[
+  {
+    "filename": "r_12.png",
+    "score": 32.5,
+    "decision": "REPAIR",
+    "note": "Low Quality (32.5 < 65.0)"
+  },
+  {
+    "filename": "r_13.png",
+    "score": 75.2,
+    "decision": "NOVEL_VIEW",
+    "note": "High Quality - Selected for Novel View"
+  }
+]
 
 ```
 
@@ -124,7 +147,6 @@ python load_images_v24.py \
 ---
 
 ## 🧠 Why This Matters for NeRF/3DGS?
-
 NeRF algorithms assume that the color of a point stays consistent across views.
 
 * **Saturation/Exposure Clipping** violates this by clamping values, making points look like flat sheets rather than textured surfaces.

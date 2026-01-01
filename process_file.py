@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-load_images_v24.py - The "Three-Pillar" Screener
-(Checks Saturation + Exposure + Quality/Blur/Noise)
+load_images_v25.py - The "Three-Pillar" Screener & Router
+(Checks Saturation + Exposure + Quality)
 
 Updates:
 1. Unified 'is_fail' logic: Checks Color OR Light OR Quality.
-2. Debug Visuals now show MUSIQ score on the image.
-3. Correctly flags Blur/Noise failures in the visual debug.
+2. AUTO-ROUTING:
+   - FAILED images -> tagged "REPAIR"
+   - PASSED images -> tagged "NOVEL_VIEW" (Ready for augmentation)
+3. Debug Visuals now show MUSIQ score on the image.
 
 Usage:
-    python load_images_v24.py --input_dir ./data --mode synthetic --debug
+    python load_images_v25.py --input_dir ./data --mode synthetic --debug
 """
 
 import os
@@ -232,8 +234,13 @@ def process_batch(args):
             # UNIFIED CHECK (Color + Light + Blur/Noise)
             is_fail, reason, score = analyze_image(img_path, settings, debug_dir)
 
-            decision = "REPAIR" if is_fail else "NONE"
-            note = reason if is_fail else ""
+            # --- AUTO ROUTING LOGIC ---
+            if is_fail:
+                decision = "REPAIR"
+                note = reason
+            else:
+                decision = "NOVEL_VIEW"
+                note = "High Quality - Selected for Novel View"
 
             # Copy processed image
             shutil.copy(img_path, os.path.join(processed_dir, fname))
@@ -246,7 +253,12 @@ def process_batch(args):
         json.dump(manifest_data, f, indent=2)
 
     repairs = len([x for x in manifest_data if x['decision'] == 'REPAIR'])
-    print(f"\n📊 SUMMARY: Detected {repairs} / {len(files)}")
+    novels = len([x for x in manifest_data if x['decision'] == 'NOVEL_VIEW'])
+
+    print(f"\n📊 SUMMARY:")
+    print(f"   🔴 REPAIR:     {repairs}")
+    print(f"   🟢 NOVEL_VIEW: {novels}")
+    print(f"   ⚪ TOTAL:      {len(files)}")
     print(f"✅ Processed images: {processed_dir}")
 
 
@@ -265,7 +277,7 @@ def test_single_image(image_path, mode, debug=False, out_dir="./output"):
     if is_fail:
         print(f"🚩 Result: REPAIR ({reason})")
     else:
-        print(f"✅ Result: PASS")
+        print(f"✅ Result: NOVEL_VIEW (Pass)")
 
     if debug:
         print(f"🐛 Visual saved to {os.path.join(out_dir, 'debug_single.png')}")

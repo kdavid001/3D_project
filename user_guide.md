@@ -13,7 +13,7 @@ Before running any scripts, activate the correct conda or virtual environment.
 ```bash
 conda deactivate
 source nsenv/bin/activate
-```
+```mm;kz
 
 ---
 
