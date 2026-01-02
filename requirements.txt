@@ -1,32 +1,39 @@
-Pillow
+# --- Core Math & Image Processing ---
 numpy
-tqdm
 scipy
 matplotlib
 scikit-image
 opencv-python
-diffusers
-transformers
-accelerate
-safetensors
+Pillow
+tqdm
+scikit-learn
+
+# --- PyTorch & AI Acceleration ---
+# (Colab usually has torch pre-installed, but good to list for consistency)
 torch
 torchvision
 xformers
-pyiqa
-sklearn-image
-invisible-watermark
-# pip install --upgrade diffusers transformers accelerate
-simple-lama-inpainting
+accelerate
+safetensors
 
-# --- Image restoration / enhancement ---
+# --- Generative AI (Zero123++) ---
+diffusers
+transformers
+invisible-watermark
+
+# --- Background Removal ---
+rembg
+onnxruntime-gpu
+
+# --- Upscaling & Restoration (Real-ESRGAN) ---
+# These replace the need for the external github requirements link
 basicsr
 facexlib
 gfpgan
 realesrgan
-rembg
-onnxruntime-gpu
 
-# Note:
-# The command `python setup.py develop` is a local editable install step
-# and should NOT be included in requirements.txt.
-# Real-ESRGAN dependencies are covered by `realesrgan` and `basicsr`.
+# --- Utilities/Dependencies for BasicSR ---
+addict
+future
+lmdb
+pyyaml

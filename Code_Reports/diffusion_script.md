@@ -5,7 +5,7 @@
 Instead of relying solely on traditional Structure-from-Motion (SfM), which fails on blurry inputs, this pipeline uses **Generative AI** to:
 
 1. **Filter** usable keyframes from corrupt video.
-2. **Synthesize** novel views (hallucinating missing angles) using **Zero123++**.
+2. **Synthesize** novel views (hallucinating missing angles) using **qZero123++**.
 3. **Upscale** synthetic data to 4K resolution using **Real-ESRGAN**.
 4. **Prepare** a robust dataset optimized for **Gaussian Splatting (3DGS)** or **COLMAP**.
 
