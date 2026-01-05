@@ -1,86 +1,72 @@
-#!/usr/bin/env python3
-"""
-Step 6 (CLEANUP): rename_sequence.py
-
-LOGIC:
-1. Separates 'Real' images (r_0.png) from 'Synthetic' images (synth_...).
-2. Sorts 'Real' images numerically (0, 1, 2, 10...) not alphabetically (0, 10, 2...).
-3. Renames everything to 0001.jpg, 0002.jpg... putting Real images FIRST.
-
-This helps COLMAP initialize the robust real trajectory before adding synthetic data.
-"""
-
 import os
+import shutil
 import argparse
-import re
 from tqdm import tqdm
 
-def extract_number(filename):
-    """Finds the first number in a filename for sorting."""
-    match = re.search(r'(\d+)', filename)
-    return int(match.group(1)) if match else 999999
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_dir", required=True, help="Directory containing images to rename")
-    args = parser.parse_args()
+def organize_dataset(source_dir, output_base_dir, model_category_name):
+    """
+    source_dir: The folder with your mixed processed files (e.g. final_dataset_v7...)
+    output_base_dir: Where you want the clean folder (e.g. /content/drive/MyDrive/.../GS_input)
+    model_category_name: The name of the object (e.g. "chair" or "lego")
+    """
 
-    # Allowed extensions
-    valid_exts = {".jpg", ".jpeg", ".png", ".webp"}
+    # 1. Setup the specific folder for this object
+    target_dir = os.path.join(output_base_dir, model_category_name, "input")
 
-    # Get all files
-    all_files = [f for f in os.listdir(args.input_dir) if os.path.splitext(f)[1].lower() in valid_exts]
+    # Clean old run if exists
+    if os.path.exists(target_dir):
+        print(f"🧹 Cleaning old folder: {target_dir}")
+        shutil.rmtree(target_dir)
+    os.makedirs(target_dir, exist_ok=True)
 
-    if not all_files:
-        print("❌ No images found in directory.")
+    print(f"📂 Source: {source_dir}")
+    print(f"🎯 Target: {target_dir}")
+
+    # 2. Get all valid image files
+    valid_exts = ('.jpg', '.jpeg', '.png')
+    if not os.path.exists(source_dir):
+        print(f"❌ ERROR: Source directory not found: {source_dir}")
         return
 
-    # SPLIT into Real vs Synthetic
-    # Assumption: Synthetic files start with "synth_" (from Step 4 script)
-    synthetics = [f for f in all_files if f.startswith("synth_")]
-    originals = [f for f in all_files if not f.startswith("synth_")]
+    all_files = [f for f in os.listdir(source_dir) if f.lower().endswith(valid_exts)]
 
-    # SORT properly (Numerical Sort)
-    # This ensures r_2.png comes before r_10.png
-    originals.sort(key=extract_number)
-    synthetics.sort(key=extract_number)
+    if not all_files:
+        print("❌ No files found in source directory!")
+        return
 
-    # COMBINE: Originals First, Synthetics Last
-    sorted_files = originals + synthetics
+    # 3. Sort them to ensure deterministic order
+    all_files.sort()
 
-    print(f"Found {len(sorted_files)} images.")
-    print(f"   - {len(originals)} Real Images (will be 0001 - {len(originals):04d})")
-    print(f"   - {len(synthetics)} Synthetic Images (will follow after)")
+    print(f"🚀 Processing {len(all_files)} images...")
 
-    # RENAME
-    # We rename to a temporary name first to avoid overwriting conflicts (e.g. renaming 1.jpg to 2.jpg while 2.jpg exists)
-    # Strategy: Rename all to "temp_XXXX.jpg", then to "0001.jpg"
+    count = 1
 
-    print("Renaming...")
+    for filename in tqdm(all_files):
+        # Construct the new sequential name (COLMAP preferred format)
+        # e.g., 00001.jpg, 00002.jpg
+        new_name = f"{count:05d}.jpg"
 
-    # Pass 1: Rename to temp safe names
-    temp_map = []
-    for i, filename in enumerate(tqdm(sorted_files, desc="Processing")):
-        old_path = os.path.join(args.input_dir, filename)
+        src_path = os.path.join(source_dir, filename)
+        dst_path = os.path.join(target_dir, new_name)
 
-        # Force .jpg for consistency
-        new_name = f"temp_{i+1:04d}.jpg"
-        new_path = os.path.join(args.input_dir, new_name)
+        # Copy and Rename
+        shutil.copy2(src_path, dst_path)
+        count += 1
 
-        os.rename(old_path, new_path)
-        temp_map.append(new_name)
+    print("-" * 30)
+    print(f"✅ Done! Organized {count - 1} images.")
+    print(f"📂 Ready for COLMAP at: {target_dir}")
 
-    # Pass 2: Rename temp to final
-    for i, filename in enumerate(temp_map):
-        old_path = os.path.join(args.input_dir, filename)
-        final_name = f"{i+1:04d}.jpg"
-        final_path = os.path.join(args.input_dir, final_name)
-
-        os.rename(old_path, final_path)
-
-    print(f"✅ Successfully renamed {len(sorted_files)} images.")
-    print(f"   First: 0001.jpg (Real)")
-    print(f"   Last:  {len(sorted_files):04d}.jpg (Synthetic)")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Organize dataset for Gaussian Splatting / COLMAP")
+
+    # Define arguments
+    parser.add_argument("--source", type=str, required=True, help="Path to the v7_final output folder")
+    parser.add_argument("--output", type=str, required=True, help="Root folder for GS Input (e.g., GS_input)")
+    parser.add_argument("--name", type=str, required=True, help="Name of the model (e.g., chair, lego)")
+
+    args = parser.parse_args()
+
+    organize_dataset(args.source, args.output, args.name)

@@ -1,31 +1,19 @@
 #!/usr/bin/env python3
 """
-COMBINED PIPELINE V4: run_full_generation_v4.py
+COMBINED PIPELINE V7 (FIXED LAYOUT): run_full_generation_v7.py
 
 UPDATES:
-1. FORCE UNIFORMITY: Every output file is resized to exactly 1024x1024.
-2. SMART CROP: Mathematically calculates grid splits to fix "Two images in one" bug.
-3. DEBUGGING: Saves the raw grid for inspection if cropping fails.
+1. LAYOUT FIX: Adjusted slicing for 2 Columns x 3 Rows (2x3).
+2. DEBUG SAVE: Still saves the full grid so you can double-check.
+3. FORCE UNIFORMITY: 1024x1024 output.
 """
 
 import sys
 import os
-import shutil
-import gc
-import argparse
-import json
-import torch
-import cv2
-import numpy as np
-import io
-from PIL import Image
-from diffusers import DiffusionPipeline
-from tqdm import tqdm
-from basicsr.archs.rrdbnet_arch import RRDBNet
-from realesrgan import RealESRGANer
-from rembg import remove
 
-# --- PATCH FOR UPSCALER ---
+# ==========================================
+# 🚨 CRITICAL PATCH 🚨
+# ==========================================
 try:
     import torchvision.transforms.functional_tensor
 except ImportError:
@@ -35,6 +23,20 @@ except ImportError:
         sys.modules["torchvision.transforms.functional_tensor"] = functional
     except ImportError:
         pass
+# ==========================================
+
+import shutil
+import gc
+import argparse
+import json
+import torch
+import cv2
+import numpy as np
+from PIL import Image
+from diffusers import DiffusionPipeline
+from tqdm import tqdm
+from basicsr.archs.rrdbnet_arch import RRDBNet
+from realesrgan import RealESRGANer
 
 
 def get_name_from_path(path):
@@ -47,57 +49,44 @@ def flush_memory():
 
 
 # ==========================================
-# PHASE 0: PRE-PROCESSING (Standardize Inputs)
+# PHASE 0: PRE-PROCESSING
 # ==========================================
 def process_for_zero123(pil_image):
-    # A. Remove Background
-    img_byte_arr = io.BytesIO()
-    pil_image.save(img_byte_arr, format='PNG')
-    output_bytes = remove(img_byte_arr.getvalue())
-    no_bg_image = Image.open(io.BytesIO(output_bytes)).convert("RGBA")
-
-    # B. FORCE 512x512 Canvas (AI Requirement)
     canvas_size = 512
-    canvas = Image.new("RGB", (canvas_size, canvas_size), (127, 127, 127))
+    canvas = Image.new("RGB", (canvas_size, canvas_size), (0, 0, 0))  # Black BG
 
-    w, h = no_bg_image.size
+    w, h = pil_image.size
     scale = (canvas_size * 0.85) / max(w, h)
     new_w = int(w * scale)
     new_h = int(h * scale)
 
-    resized_obj = no_bg_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    resized_obj = pil_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     x = (canvas_size - new_w) // 2
     y = (canvas_size - new_h) // 2
 
-    canvas.paste(resized_obj, (x, y), resized_obj)
+    canvas.paste(resized_obj, (x, y))
     return canvas
 
 
 # ==========================================
-# PHASE 1: SYNTHESIS (Smart Crop)
+# PHASE 1: SYNTHESIS (FIXED FOR 2x3 GRID)
 # ==========================================
 def crop_zero123_grid_dynamic(grid_img, base_filename, output_dir):
-    """
-    Dynamically cuts the grid based on its actual size.
-    Zero123++ v1.2 usually outputs 3 columns x 2 rows.
-    """
     w, h = grid_img.size
 
-    # Calculate single tile size
-    tile_w = w // 3
-    tile_h = h // 2
-
-    # Debug print for the first image
-    if not hasattr(crop_zero123_grid_dynamic, "debug_printed"):
-        print(f"   📏 Detected AI Grid Size: {w}x{h}")
-        print(f"   📏 Calculated Tile Size:  {tile_w}x{tile_h}")
-        crop_zero123_grid_dynamic.debug_printed = True
+    # --- 🚨 THE FIX IS HERE 🚨 ---
+    # Layout: 2 Columns, 3 Rows
+    tile_w = w // 2
+    tile_h = h // 3
+    # -----------------------------
 
     count = 0
     generated_files = []
 
-    for row in range(2):
-        for col in range(3):
+    # Iterate: 3 Rows down, 2 Columns across
+    for row in range(3):
+        for col in range(2):
+            # Calculate coordinates
             left = col * tile_w
             top = row * tile_h
             right = left + tile_w
@@ -105,7 +94,6 @@ def crop_zero123_grid_dynamic(grid_img, base_filename, output_dir):
 
             view = grid_img.crop((left, top, right, bottom))
 
-            # Save raw synthetic view
             save_name = f"synth_{os.path.splitext(base_filename)[0]}_v{count}.png"
             view.save(os.path.join(output_dir, save_name))
             generated_files.append(save_name)
@@ -115,7 +103,7 @@ def crop_zero123_grid_dynamic(grid_img, base_filename, output_dir):
 
 
 def run_synthesis_phase(input_dir, temp_dir, candidates):
-    print(f"\n🔹 PHASE 1: Cleaning & Synthesizing...")
+    print(f"\n🔹 PHASE 1: Synthesizing (2x3 Grid Layout)...")
 
     pipeline = DiffusionPipeline.from_pretrained(
         "sudo-ai/zero123plus-v1.2",
@@ -133,15 +121,16 @@ def run_synthesis_phase(input_dir, temp_dir, candidates):
         img_path = next((p for p in paths if os.path.exists(p)), None)
         if not img_path: continue
 
-        # 1. Clean Input
         input_img = Image.open(img_path).convert("RGB")
         clean_input = process_for_zero123(input_img)
-        clean_input.save(os.path.join(temp_dir, f"anchor_{filename}"))  # Save Anchor
+        clean_input.save(os.path.join(temp_dir, f"anchor_{filename}"))
 
-        # 2. Generate Grid
         result_grid = pipeline(clean_input, num_inference_steps=75).images[0]
 
-        # 3. Smart Crop
+        # Save Debug Grid
+        result_grid.save(os.path.join(temp_dir, f"FULL_GRID_{filename}"))
+
+        # Cut using NEW 2x3 logic
         crop_zero123_grid_dynamic(result_grid, filename, temp_dir)
 
     del pipeline
@@ -149,7 +138,7 @@ def run_synthesis_phase(input_dir, temp_dir, candidates):
 
 
 # ==========================================
-# PHASE 2: UPSCALE & STANDARDIZE (The Final Fix)
+# PHASE 2: UPSCALE & STANDARDIZE
 # ==========================================
 def run_upscale_phase(temp_dir, final_dir):
     print(f"\n🔹 PHASE 2: Upscaling & Standardizing to 1024x1024...")
@@ -169,32 +158,29 @@ def run_upscale_phase(temp_dir, final_dir):
     files = [f for f in os.listdir(temp_dir) if f.lower().endswith(valid_exts)]
 
     for filename in tqdm(files, desc="Standardizing"):
+        # Skip Full Grids
+        if "FULL_GRID" in filename: continue
+
         img_path = os.path.join(temp_dir, filename)
         img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
         if img is None: continue
 
         h, w = img.shape[:2]
 
-        # A. UPSCALE LOGIC
-        # If small (< 800), upscale it 4x.
         if w < 800:
             output, _ = upsampler.enhance(img, outscale=4)
         else:
             output = img
 
-        # B. STANDARDIZATION LOGIC (FORCE 1024x1024)
-        # This fixes the "Ghost File" size mismatch for GS compatibility.
         output = cv2.resize(output, (1024, 1024), interpolation=cv2.INTER_LANCZOS4)
-
         cv2.imwrite(os.path.join(final_dir, filename), output)
 
 
 def main(args):
     print(f"🔍 Hardware: {torch.cuda.get_device_name(0)}")
 
-    # FORCE NEW FOLDER to verify fix
     dataset_name = get_name_from_path(args.input_dir)
-    unique_suffix = "v4_uniform"
+    unique_suffix = "fixed"
 
     temp_dir = os.path.join(args.out_dir, f"temp_{dataset_name}_{unique_suffix}")
     final_dir = os.path.join(args.out_dir, f"final_{dataset_name}_{unique_suffix}")
@@ -215,7 +201,7 @@ def main(args):
     run_synthesis_phase(args.input_dir, temp_dir, candidates)
     run_upscale_phase(temp_dir, final_dir)
 
-    print(f"\n✅✅ DONE! All images are now EXACTLY 1024x1024.")
+    print(f"\n✅✅ DONE! (Used 2x3 Grid Layout)")
     print(f"📂 Output: {final_dir}")
 
 

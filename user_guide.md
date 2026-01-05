@@ -37,8 +37,8 @@ You can corrupt your dataset for data augmentation or robustness testing.
 python3 corrupt_data.py \
   --clean_dir ./others/tandt_db/tandt/train \
   --out_dir ./output_train/ \
-  --corrupt_prob 0.6 \
-  --delete_prob 0.6 \
+  --corrupt_prob 0.8 \
+  --delete_prob 0.65 \
   --seed 42
 ```
 
@@ -49,8 +49,8 @@ python3 corrupt_data.py \
   --clean_dir ./nerf_synthetic/lego \
   --out_dir ./output_train \
   --use_geometry \
-  --corrupt_prob 0.6 \
-  --delete_prob 0.6 \
+  --corrupt_prob 0.8 \
+  --delete_prob 0.65 \
   --seed 42
 ```
 
