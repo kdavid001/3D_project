@@ -5,17 +5,14 @@
 #
 # This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
-# This is a modified version of the original to fix the headless GPU issue
+#
 # For inquiries contact  george.drettakis@inria.fr
-
-
 #
 
 import os
 import logging
 from argparse import ArgumentParser
 import shutil
-import subprocess
 
 # This Python script is based on the shell converter script provided in the MipNerF 360 repository.
 parser = ArgumentParser("Colmap converter")
@@ -27,22 +24,6 @@ parser.add_argument("--colmap_executable", default="", type=str)
 parser.add_argument("--resize", action="store_true")
 parser.add_argument("--magick_executable", default="", type=str)
 args = parser.parse_args()
-
-
-# ==========================================
-# 🚨 HELPER: HEADLESS WRAPPER
-# This forces 'xvfb-run' so COLMAP can use the GPU without a physical monitor.
-# ==========================================
-def run_colmap_command(cmd_string):
-    # If we are on a headless Linux system (like Colab), wrap in xvfb-run
-    # The '-a' flag finds a free server number automatically.
-    full_cmd = f"xvfb-run -a {cmd_string}"
-    print(f"🚀 Running command: {full_cmd}")
-    return os.system(full_cmd)
-
-
-# ==========================================
-
 colmap_command = '"{}"'.format(args.colmap_executable) if len(args.colmap_executable) > 0 else "colmap"
 magick_command = '"{}"'.format(args.magick_executable) if len(args.magick_executable) > 0 else "magick"
 use_gpu = 1 if not args.no_gpu else 0
@@ -51,15 +32,13 @@ if not args.skip_matching:
     os.makedirs(args.source_path + "/distorted/sparse", exist_ok=True)
 
     ## Feature extraction
-    feat_extracton_cmd = colmap_command + " feature_extractor " \
-                                          "--database_path " + args.source_path + "/distorted/database.db \
+    feat_extracton_cmd = colmap_command + " feature_extractor "\
+        "--database_path " + args.source_path + "/distorted/database.db \
         --image_path " + args.source_path + "/input \
         --ImageReader.single_camera 1 \
         --ImageReader.camera_model " + args.camera + " \
         --SiftExtraction.use_gpu " + str(use_gpu)
-
-    # PATCHED: Use run_colmap_command instead of os.system
-    exit_code = run_colmap_command(feat_extracton_cmd)
+    exit_code = os.system(feat_extracton_cmd)
     if exit_code != 0:
         logging.error(f"Feature extraction failed with code {exit_code}. Exiting.")
         exit(exit_code)
@@ -68,9 +47,7 @@ if not args.skip_matching:
     feat_matching_cmd = colmap_command + " exhaustive_matcher \
         --database_path " + args.source_path + "/distorted/database.db \
         --SiftMatching.use_gpu " + str(use_gpu)
-
-    # PATCHED: Use run_colmap_command
-    exit_code = run_colmap_command(feat_matching_cmd)
+    exit_code = os.system(feat_matching_cmd)
     if exit_code != 0:
         logging.error(f"Feature matching failed with code {exit_code}. Exiting.")
         exit(exit_code)
@@ -80,12 +57,10 @@ if not args.skip_matching:
     # decreasing it speeds up bundle adjustment steps.
     mapper_cmd = (colmap_command + " mapper \
         --database_path " + args.source_path + "/distorted/database.db \
-        --image_path " + args.source_path + "/input \
-        --output_path " + args.source_path + "/distorted/sparse \
+        --image_path "  + args.source_path + "/input \
+        --output_path "  + args.source_path + "/distorted/sparse \
         --Mapper.ba_global_function_tolerance=0.000001")
-
-    # PATCHED: Use run_colmap_command
-    exit_code = run_colmap_command(mapper_cmd)
+    exit_code = os.system(mapper_cmd)
     if exit_code != 0:
         logging.error(f"Mapper failed with code {exit_code}. Exiting.")
         exit(exit_code)
@@ -97,9 +72,7 @@ img_undist_cmd = (colmap_command + " image_undistorter \
     --input_path " + args.source_path + "/distorted/sparse/0 \
     --output_path " + args.source_path + "\
     --output_type COLMAP")
-
-# PATCHED: Use run_colmap_command
-exit_code = run_colmap_command(img_undist_cmd)
+exit_code = os.system(img_undist_cmd)
 if exit_code != 0:
     logging.error(f"Mapper failed with code {exit_code}. Exiting.")
     exit(exit_code)
@@ -114,7 +87,7 @@ for file in files:
     destination_file = os.path.join(args.source_path, "sparse", "0", file)
     shutil.move(source_file, destination_file)
 
-if (args.resize):
+if(args.resize):
     print("Copying and resizing...")
 
     # Resize images.

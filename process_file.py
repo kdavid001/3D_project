@@ -1,17 +1,7 @@
 #!/usr/bin/env python3
 """
-load_images_v25.py - The "Three-Pillar" Screener & Router
-(Checks Saturation + Exposure + Quality)
-
-Updates:
-1. Unified 'is_fail' logic: Checks Color OR Light OR Quality.
-2. AUTO-ROUTING:
-   - FAILED images -> tagged "REPAIR"
-   - PASSED images -> tagged "NOVEL_VIEW" (Ready for augmentation)
-3. Debug Visuals now show MUSIQ score on the image.
-
-Usage:
-    python load_images_v25.py --input_dir ./data --mode synthetic --debug
+load_images_legend.py - Fixed for Natural Images with BETTER GRAPHS
+(Includes Legends, Axis Labels, and Your Custom Thresholds)
 """
 
 import os
@@ -28,29 +18,34 @@ import matplotlib.pyplot as plt
 # Prevent crashes on headless servers
 plt.switch_backend('Agg')
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION (YOUR EXACT SETTINGS) ---
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png"}
 
 THRESHOLDS = {
     "natural": {
-        "BAD_LIMIT": 40.0,  # MUSIQ Score < 40 = FAIL (Blur/Noise)
-        "GOOD_LIMIT": 70.0,
         "USE_CROP": False,
-        "CHECK_COLOR": True,
-        "SAT_MAX_AVG": 170.0,
+        "BAD_LIMIT": 40.0,
         "SAT_CLIPPED": 0.05,
-        "EXP_MIN_AVG": 30.0,
-        "EXP_MAX_AVG": 220.0
+        "SAT_MAX_AVG": 180.0,
+        "EXP_MIN_AVG": 45.0,  # As requested
+        "EXP_MAX_AVG": 250.0,
+        "CONTRAST_MIN": 10.0,
+        "CAST_LIMIT": 60.0
     },
     "synthetic": {
-        "BAD_LIMIT": 65.0,  # Stricter for synthetic
-        "GOOD_LIMIT": 71.0,
         "USE_CROP": True,
-        "CHECK_COLOR": True,
-        "SAT_MAX_AVG": 180.0,
-        "SAT_CLIPPED": 0.08,
-        "EXP_MIN_AVG": 10.0,
-        "EXP_MAX_AVG": 230.0
+        # 1. QUALITY (MUSIQ)
+        "BAD_LIMIT": 65.0,
+        # 2. SATURATION (Neon Check)
+        "SAT_MAX_AVG": 160.0,
+        "SAT_CLIPPED": 0.02,
+        # 3. EXPOSURE (Light Check)
+        "EXP_MIN_AVG": 45.0,
+        "EXP_MAX_AVG": 230.0,
+        # 4. CONTRAST (Flatness Check)
+        "CONTRAST_MIN": 25.0,
+        # 5. COLOR CAST (Tint Check)
+        "CAST_LIMIT": 50.0
     }
 }
 
@@ -86,6 +81,7 @@ def crop_to_content(img_path):
     y = max(0, y - pad)
     w = min(w_img - x, w + 2 * pad);
     h = min(h_img - y, h + 2 * pad)
+
     cropped = img[y:y + h, x:x + w]
     temp_path = img_path.replace(".png", "_temp_crop.png")
     cv2.imwrite(temp_path, cropped)
@@ -105,97 +101,123 @@ def get_quality_score(img_path, use_crop):
 
 
 def analyze_image(img_path, settings, debug_dir=None, save_name=None):
-    """
-    Checks ALL 3 Failure Modes:
-    1. Saturation (Fried)
-    2. Exposure (Blown/Dark)
-    3. Quality (Blur/Noise via MUSIQ)
-    """
     img = cv2.imread(img_path)
     if img is None: return False, "None", 0.0
 
-    # --- 1. GET MUSIQ SCORE (Blur/Noise) ---
+    # --- 1. QUALITY ---
     score = get_quality_score(img_path, settings['USE_CROP'])
     score = round(score, 2)
-
     is_qual_fail = score < settings['BAD_LIMIT']
-    qual_reason = f"Low Quality ({score} < {settings['BAD_LIMIT']})" if is_qual_fail else "Quality Pass"
+    qual_reason = f"Blurry ({score})" if is_qual_fail else "Sharp"
 
-    # --- 2. RADIOMETRIC CHECKS (Sat/Exp) ---
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-    mask = np.all(img != [0, 0, 0], axis=2)  # Ignore background
+    # --- 2. RADIOMETRICS ---
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    mask = np.all(img != [0, 0, 0], axis=2)
     valid_pixels = np.sum(mask)
-
     if valid_pixels == 0: return False, "Empty", 0.0
 
     # Saturation
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    s = hsv[:, :, 1]
     avg_sat = np.mean(s[mask])
-    clipped_pixels = np.sum((s >= 250) & mask)
-    clipped_ratio = clipped_pixels / valid_pixels
-
-    is_sat_fail = False
-    sat_reason = "Sat Pass"
-    if avg_sat > settings['SAT_MAX_AVG']:
-        is_sat_fail = True
-        sat_reason = f"Oversaturated (Avg {avg_sat:.1f})"
-    elif clipped_ratio > settings['SAT_CLIPPED']:
-        is_sat_fail = True
-        sat_reason = f"Neon Clip ({clipped_ratio:.1%})"
+    clipped_ratio = np.sum((s >= 250) & mask) / valid_pixels
+    is_sat_fail = avg_sat > settings['SAT_MAX_AVG'] or clipped_ratio > settings['SAT_CLIPPED']
+    sat_reason = "Neon" if is_sat_fail else "Color OK"
 
     # Exposure
+    v = hsv[:, :, 2]
     avg_val = np.mean(v[mask])
-    is_exp_fail = False
-    exp_reason = "Exp Pass"
-    if avg_val > settings['EXP_MAX_AVG']:
-        is_exp_fail = True
-        exp_reason = f"Overexposed ({avg_val:.1f})"
-    elif avg_val < settings['EXP_MIN_AVG']:
-        is_exp_fail = True
-        exp_reason = f"Underexposed ({avg_val:.1f})"
+    is_exp_fail = avg_val > settings['EXP_MAX_AVG'] or avg_val < settings['EXP_MIN_AVG']
+    exp_reason = "Bad Light" if is_exp_fail else "Light OK"
 
-    # --- 3. FINAL DECISION ---
-    # Fails if ANY of the 3 checks fail
-    is_fail = is_sat_fail or is_exp_fail or is_qual_fail
+    # Contrast
+    contrast_val = np.std(v[mask])
+    is_cont_fail = contrast_val < settings['CONTRAST_MIN']
+    cont_reason = "Flat" if is_cont_fail else "Contrasty"
 
-    # Priority for Reason String: Quality -> Sat -> Exp
+    # --- 3. COLOR CAST ---
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    l, a, b_chan = cv2.split(lab)
+    avg_a = np.mean(a[mask]) - 128
+    avg_b = np.mean(b_chan[mask]) - 128
+    cast_score = np.sqrt(avg_a ** 2 + avg_b ** 2)
+    is_cast_fail = cast_score > settings['CAST_LIMIT']
+    cast_reason = f"Tinted ({cast_score:.1f})" if is_cast_fail else "Neutral"
+
+    # --- 4. FINAL DECISION ---
+    is_fail = is_sat_fail or is_exp_fail or is_qual_fail or is_cont_fail or is_cast_fail
+
     final_reason = "Pass"
     if is_fail:
-        if is_qual_fail:
+        if is_cast_fail:
+            final_reason = cast_reason
+        elif is_qual_fail:
             final_reason = qual_reason
         elif is_sat_fail:
             final_reason = sat_reason
         elif is_exp_fail:
             final_reason = exp_reason
+        elif is_cont_fail:
+            final_reason = cont_reason
 
-    # --- VISUAL DEBUG ---
+    # --- VISUAL DEBUG (NOW WITH LEGENDS) ---
     if debug_dir:
         fname = save_name if save_name else os.path.basename(img_path)
-        fig, ax = plt.subplots(1, 3, figsize=(18, 5))
+        fig = plt.figure(figsize=(16, 6))
+        gs = fig.add_gridspec(1, 3)
 
-        # Panel 1: Original + Pass/Fail Status
+        # Panel 1: Image
+        ax1 = fig.add_subplot(gs[0, 0])
         status_color = 'red' if is_fail else 'green'
-        ax[0].set_title(f"{'FAIL' if is_fail else 'PASS'}\n{final_reason}",
-                        color=status_color, fontweight='bold', fontsize=12)
-        ax[0].imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        ax[0].axis('off')
+        ax1.set_title(f"{'REJECT' if is_fail else 'PASS'}: {final_reason}\nScore: {score}",
+                      color=status_color, fontweight='bold', fontsize=14)
+        ax1.imshow(img_rgb)
+        ax1.axis('off')
 
-        # Panel 2: Saturation Heatmap
-        ax[1].set_title(f"Sat Clipping: {clipped_ratio:.1%}")
-        im = ax[1].imshow(s, cmap='inferno', vmin=0, vmax=255)
-        plt.colorbar(im, ax=ax[1], fraction=0.046, pad=0.04)
-        ax[1].axis('off')
+        # Panel 2: RGB Histogram WITH LEGEND
+        ax2 = fig.add_subplot(gs[0, 1])
+        ax2.set_title(f"Color Balance (Cast Score: {cast_score:.1f})")
 
-        # Panel 3: Exposure Histogram
-        ax[2].set_title(f"Exposure (Avg: {avg_val:.1f})")
-        ax[2].hist(v[mask].ravel(), bins=256, range=[0, 256], color='gray', alpha=0.8)
-        # Threshold Lines
-        ax[2].axvline(settings['EXP_MIN_AVG'], color='red', linestyle='--', label='Min')
-        ax[2].axvline(settings['EXP_MAX_AVG'], color='red', linestyle='--', label='Max')
-        ax[2].axvline(avg_val, color='blue', linestyle='-', label='Avg')
-        ax[2].set_xlim([0, 256])
-        ax[2].legend()
-        ax[2].grid(True, alpha=0.3)
+        # Plot lines with labels
+        colors = ('r', 'g', 'b')
+        labels = ('Red Channel', 'Green Channel', 'Blue Channel')
+
+        for i, color in enumerate(colors):
+            hist = cv2.calcHist([img], [i], None, [256], [1, 256])
+            ax2.plot(hist, color=color, linewidth=2, alpha=0.8, label=labels[i])
+            ax2.fill_between(range(256), hist.flatten(), color=color, alpha=0.1)
+
+        ax2.set_xlim([0, 256])
+        ax2.grid(True, alpha=0.3)
+        ax2.set_xlabel("Pixel Brightness (0=Dark, 255=Bright)")
+        ax2.set_ylabel("Pixel Count")
+
+        # Add the Legend!
+        ax2.legend(loc='upper right', fontsize=9)
+
+        if is_cast_fail:
+            ax2.text(128, ax2.get_ylim()[1] * 0.8, "❌ UNBALANCED",
+                     color='red', ha='center', fontweight='bold')
+
+        # Panel 3: Stats
+        ax3 = fig.add_subplot(gs[0, 2])
+        ax3.axis('off')
+        ax3.set_title("Inspection Report")
+        metrics = [
+            ("Quality", score, settings['BAD_LIMIT'], ">"),
+            ("Saturation", clipped_ratio * 100, settings['SAT_CLIPPED'] * 100, "<"),
+            ("Brightness", avg_val, settings['EXP_MIN_AVG'], ">"),
+            ("Contrast", contrast_val, settings['CONTRAST_MIN'], ">"),
+            ("Color Tint", cast_score, settings['CAST_LIMIT'], "<")
+        ]
+        y_pos = 0.9
+        for name, val, thresh, op in metrics:
+            pass_metric = (val > thresh) if op == ">" else (val < thresh)
+            icon = "✅" if pass_metric else "❌"
+            text_color = "black" if pass_metric else "red"
+            ax3.text(0.1, y_pos, f"{icon} {name}", fontsize=12, fontweight='bold')
+            ax3.text(0.6, y_pos, f"{val:.1f}  (Limit {thresh:.1f})", fontsize=12, color=text_color)
+            y_pos -= 0.15
 
         save_path = os.path.join(debug_dir, fname)
         plt.tight_layout()
@@ -229,21 +251,14 @@ def process_batch(args):
 
     for fname in tqdm(files):
         img_path = os.path.join(search_dir, fname)
-
         try:
-            # UNIFIED CHECK (Color + Light + Blur/Noise)
             is_fail, reason, score = analyze_image(img_path, settings, debug_dir)
+            decision = "REPAIR" if is_fail else "NOVEL_VIEW"
+            note = reason
 
-            # --- AUTO ROUTING LOGIC ---
-            if is_fail:
-                decision = "REPAIR"
-                note = reason
-            else:
-                decision = "NOVEL_VIEW"
-                note = "High Quality - Selected for Novel View"
+            if not is_fail:
+                shutil.copy(img_path, os.path.join(processed_dir, fname))
 
-            # Copy processed image
-            shutil.copy(img_path, os.path.join(processed_dir, fname))
             manifest_data.append({"filename": fname, "score": score, "decision": decision, "note": note})
 
         except Exception as e:
@@ -252,35 +267,24 @@ def process_batch(args):
     with open(os.path.join(args.out_dir, "manifest.json"), 'w') as f:
         json.dump(manifest_data, f, indent=2)
 
-    repairs = len([x for x in manifest_data if x['decision'] == 'REPAIR'])
-    novels = len([x for x in manifest_data if x['decision'] == 'NOVEL_VIEW'])
+    # --- STATISTICAL SUMMARY ---
+    total_files = len(files)
+    processed_count = len(manifest_data)
+    repair_count = sum(1 for item in manifest_data if item['decision'] == 'REPAIR')
+    novel_count = sum(1 for item in manifest_data if item['decision'] == 'NOVEL_VIEW')
+    pass_rate = (novel_count / total_files) * 100 if total_files > 0 else 0
 
-    print(f"\n📊 SUMMARY:")
-    print(f"   🔴 REPAIR:     {repairs}")
-    print(f"   🟢 NOVEL_VIEW: {novels}")
-    print(f"   ⚪ TOTAL:      {len(files)}")
-    print(f"✅ Processed images: {processed_dir}")
-
-
-def test_single_image(image_path, mode, debug=False, out_dir="./output"):
-    if not os.path.exists(image_path): return print("❌ Error: Not found")
-    settings = THRESHOLDS[mode]
-    print(f"\n🔎 Analyzing: {image_path}")
-
-    debug_dir = out_dir if debug else None
-    if debug_dir and not os.path.exists(debug_dir): os.makedirs(debug_dir)
-
-    # UNIFIED CHECK
-    is_fail, reason, score = analyze_image(image_path, settings, debug_dir, "debug_single.png")
-
-    print(f"📊 MUSIQ Score: {score}")
-    if is_fail:
-        print(f"🚩 Result: REPAIR ({reason})")
-    else:
-        print(f"✅ Result: NOVEL_VIEW (Pass)")
-
-    if debug:
-        print(f"🐛 Visual saved to {os.path.join(out_dir, 'debug_single.png')}")
+    print("\n" + "=" * 40)
+    print(f"📊 FINAL DATASET REPORT")
+    print("=" * 40)
+    print(f"   ⚪ TOTAL IMAGES:      {total_files}")
+    print(f"   🟢 PASSED (Novel):    {novel_count} ({pass_rate:.1f}%)")
+    print(f"   🔴 FAILED (Repair):   {repair_count}")
+    print("-" * 40)
+    print(f"✅ Clean dataset: {processed_dir}")
+    if args.debug:
+        print(f"🐛 Debug Charts:  {debug_dir}")
+    print("=" * 40 + "\n")
 
 
 if __name__ == "__main__":
@@ -293,7 +297,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.test_image:
-        test_single_image(args.test_image, args.mode, args.debug, args.out_dir)
+        analyze_image(args.test_image, THRESHOLDS[args.mode], args.out_dir, "debug_test.png")
     elif args.input_dir:
         process_batch(args)
     else:

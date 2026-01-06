@@ -13,7 +13,7 @@ Before running any scripts, activate the correct conda or virtual environment.
 ```bash
 conda deactivate
 source nsenv/bin/activate
-```mm;kz
+```
 
 ---
 
@@ -72,7 +72,8 @@ python3 process_file.py \
 python3 process_file.py \
   --mode natural \
   --input_dir ./output_train/train \
-  --out_dir ./output_train/train
+  --out_dir ./output_processed/train \
+  --debug
 ```
 
 #### For NeRF Synthetic Data (Single Image)
