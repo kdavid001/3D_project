@@ -1,23 +1,21 @@
-# CoDiffusion: Generative 3D Reconstruction Pipeline
+# CoDiffusion: Universal Generative 3D Pipeline
 
-**CoDiffusion** is a fault-tolerant pipeline designed to rescue 3D reconstruction projects from low-quality, sparse, or corrupt input data (e.g., blurry video frames).
+**CoDiffusion** is a fault-tolerant pipeline designed to rescue 3D reconstruction projects from low-quality, sparse, or corrupt input data.
 
-Instead of relying solely on traditional Structure-from-Motion (SfM), which fails on blurry inputs, this pipeline uses **Generative AI** to:
+Unlike traditional pipelines that fail on blurry or sparse inputs, this system uses a **Universal Diffusion Architecture** with two distinct modes:
 
-1. **Filter** usable keyframes from corrupt video.
-2. **Synthesize** novel views (hallucinating missing angles) using **qZero123++**.
-3. **Upscale** synthetic data to 4K resolution using **Real-ESRGAN**.
-4. **Prepare** a robust dataset optimized for **Gaussian Splatting (3DGS)** or **COLMAP**.
+1.  **Synthesis Mode (Zero123++):** Hallucinates *novel* camera angles to fill gaps in sparse datasets.
+2.  **Restoration Mode (ControlNet):** Repairs *existing* noisy or blurry natural images without altering their geometry, ensuring COLMAP can track features.
 
 ---
 
 ## 🚀 Key Features
 
-* **Graceful Degradation:** Turns "crash-prone" sparse datasets into dense, usable point clouds.
-* **Multi-View Swarm Generation:** Generates 6 consistent novel views for every single good input image.
-* **Auto-Cleaning:** Automatically removes backgrounds (`rembg`) and centers objects to prevent "double object" hallucinations.
-* **Hybrid Resolution:** Blends original 4K photography with AI-upscaled synthetic details.
-* **COLMAP-Optimized Sorting:** Prioritizes real geometry during initialization to ensure accurate scale and orientation.
+* **Dual-Mode Engine:** Switch between *generating new views* (Synthesis) or *fixing bad views* (Restoration) with a single flag.
+* **Graceful Degradation:** Turns "crash-prone" datasets into dense, usable point clouds.
+* **Natural Image Restoration:** Uses **ControlNet Tile** to denoise and sharpen real-world photos while preserving background context for SfM.
+* **Multi-View Swarm Generation:** Generates 6 consistent novel views for every single anchor image (Synthesis Mode).
+* **Hybrid Resolution:** Blends original 4K photography with AI-upscaled synthetic details (Real-ESRGAN).
 
 ---
 
@@ -32,59 +30,88 @@ Instead of relying solely on traditional Structure-from-Motion (SfM), which fail
 **Install Dependencies:**
 
 ```bash
-# 1. Core Generative Libraries
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install diffusers transformers accelerate rembg
+# 1. Core Generative Libraries & Accelerators
+pip install torch torchvision torchaudio --index-url [https://download.pytorch.org/whl/cu118](https://download.pytorch.org/whl/cu118)
+pip install diffusers transformers accelerate safetensors protobuf
 
-# 2. Image Processing & Upscaling
+# 2. ControlNet & Image Processing
+pip install controlnet_aux rembg onnxruntime-gpu
 pip install opencv-python pillow tqdm
-pip install onnxruntime-gpu  # Important for Background Removal speed
-pip install basicsr realesrgan
 
+# 3. Upscaling (Real-ESRGAN)
+pip install basicsr realesrgan
 ```
 
-*Note: If you encounter `basicsr` errors regarding `torchvision`, the scripts include an auto-patcher to fix version conflicts.*
+*Note: If you encounter `basicsr` errors regarding `torchvision`, run the included auto-patcher snippet before execution.*
 
 ---
 
 ## 🏃‍♂️ Usage
 
-### Phase 1: The "All-in-One" Generation
+The pipeline now operates in two modes using `diffusion_script.py`.
 
-Run the main pipeline. This script handles filtering, background removal, Zero123++ synthesis, and Real-ESRGAN upscaling in a single pass to manage GPU memory efficiently.
+### Mode A: Synthesis (Default)
+
+**Best for:** Sparse datasets, object scans, or when you have < 20 images.
+
+* **Action:** Removes background -> Centers Object -> Generates 6 new angles per image -> Upscales.
 
 ```bash
-python run_full_generation_v2.py \
-  --input_dir "/path/to/your/step1_output" \
-  --out_dir "/path/to/save/results"
+python diffusion_script.py \
+  --input_dir "/path/to/your/input_images" \
+  --out_dir "/path/to/save/results" \
+  --mode synthesis
 
 ```
 
-* **Input:** The folder containing your `manifest.json` and processed images (from the Step 1 Quality Filter).
-* **Output:** A folder named `final_dataset_[name]` containing high-res synthetic and real images.
+### Mode B: Restoration (New)
+
+**Best for:** Corrupt/blurry natural images (trains, landscapes, scenes).
+
+* **Action:** Keeps background (No masking) -> Denoises & Sharpens using ControlNet -> Upscales.
+* **Note:** This mode preserves the original camera perspective so COLMAP can still calculate the pose.
+
+```bash
+python diffusion_script.py \
+  --input_dir "/path/to/your/corrupt_images" \
+  --out_dir "/path/to/save/results" \
+  --mode restoration \
+  --prompt "high quality photo, detailed, sharp focus, 8k"
+
+```
 
 ### Phase 2: Sequence Preparation (Critical for COLMAP)
 
-Before running 3D reconstruction, you must rename the files so that **Real Images** come first (initializing the geometry) and **Synthetic Images** come last (filling the gaps).
+After generating/restoring images, run the renaming utility to ensure COLMAP prioritizes the best images first.
 
 ```bash
 python rename_sequence.py \
-  --input_dir "/path/to/save/results/final_dataset_name"
+  --input_dir "/path/to/save/results/final_dataset_run"
 
 ```
 
-* **Result:** Images will be renamed to `0001.jpg`, `0002.jpg`...
-* **Order:** Real Images (0001–00XX) -> Synthetic Images (00XX–01XX).
+* **Result:** Images are renamed to `0001.jpg`, `0002.jpg`...
+* **Logic:** Real/Restored images are placed first (0001–00XX) to lock geometry; Synthetic images are placed last (00XX+).
 
 ---
 
 ## 🧠 How It Works (The Pipeline)
 
-1. **Ingestion & Filtering:** The system scans the `manifest.json` to find the highest-quality "Anchor Images" (high Laplacian variance, low blur).
-2. **Preprocessing (RemBG):** Anchor images are stripped of their background and centered on a 512x512 canvas. This prevents the "floating artifacts" common in Zero123.
-3. **View Synthesis (Zero123++):** The diffusion model generates 6 new camera angles (Front-Left, Back-Right, Top-Down, etc.) for each anchor.
-4. **Super-Resolution (Real-ESRGAN):** Since diffusion models output low-res (512px) images, the upscaler expands them 4x (to 2048px) to match the original camera fidelity.
-5. **Sequential Locking:** The renaming script ensures that when you run COLMAP, the SfM engine locks onto real features first, preventing the reconstruction from "drifting" into AI hallucinations.
+The system automatically routes logic based on your `--mode`:
+
+### 1. Ingestion & Filtering
+
+* **Synthesis:** Scans `manifest.json` for **"NOVEL_VIEW"** candidates (anchors).
+* **Restoration:** Scans for **"REPAIR"** tags, or defaults to processing **ALL** images in the folder if no manifest exists.
+
+### 2. The Diffusion Pass
+
+* **Path A (Synthesis):** Images are masked (black BG) and centered. **Zero123++** generates 6 novel views.
+* **Path B (Restoration):** Images are kept raw (with background). **ControlNet Tile** + **Stable Diffusion 1.5** hallucinates high-frequency details while locking onto the original geometry.
+
+### 3. Super-Resolution
+
+Both paths feed into **Real-ESRGAN**, which takes the 512px AI output and upscales it 4x (to 2048px+) to match modern camera fidelity.
 
 ---
 
@@ -92,21 +119,23 @@ python rename_sequence.py \
 
 ```text
 CoDiffusion/
-├── run_full_generation_v2.py   # Main Generation Pipeline (Synthesis + Upscale)
+├── diffusion_script.py         # Universal Pipeline (Synthesis + Restoration)
 ├── rename_sequence.py          # Sorting utility for COLMAP optimization
-├── weights/                    # Stores Real-ESRGAN models (auto-downloaded)
+├── weights/                    # Stores Real-ESRGAN/ControlNet models (auto-downloaded)
 └── README.md                   # This file
 
 ```
 
 ## ⚖️ Limitations
-
-* **Texture Smoothing:** Synthetic views may look "cleaner" or smoother than real photos, potentially smoothing out very fine scratches or dirt.
-* **Geometry Hallucination:** In extremely rare cases, Zero123++ may misinterpret complex hollow structures (like inside a tire) if the angle is completely blind.
-* **VRAM Usage:** Requires ~16GB VRAM for stable execution (A100/L4). T4 users may need to reduce batch sizes.
+* **Synthesis Hallucinations:** Zero123++ may misinterpret complex hollow structures (e.g., inside a tire) from blind angles.
+* **Restoration "Dreaming":** If the `--prompt` is too specific (e.g., "hotdog") on a generic object, ControlNet might force-texture the object incorrectly. Use generic prompts ("high quality photo") for safety.
+* **VRAM:** Restoration mode is lighter on VRAM (~8GB) than Synthesis mode (~16GB).
 
 ## 🤝 Credits
-
-* **Zero123++:** [Sudo-AI](https://www.google.com/search?q=https://github.com/Sudo-AI-3D/zero123plus) (View Synthesis)
+* **Zero123++:** [Sudo-AI](https://www.google.com/search?q=https://github.com/Sudo-AI-3D/zero123plus) (Novel Views)
+* **ControlNet:** [lllyasviel](https://github.com/lllyasviel/ControlNet) (Restoration/Tile)
 * **Real-ESRGAN:** [Xinntao](https://github.com/xinntao/Real-ESRGAN) (Super-Resolution)
-* **RemBG:** [Daniel Gatis](https://github.com/danielgatis/rembg) (Background Removal)
+
+```
+
+```

@@ -1,92 +1,111 @@
-# 🛡️ Radiometric Screener & Novel View Router
+# 🛡️ Radiometric Screener & Router (Enhanced Visuals)
 
 ## 📌 Overview
-`load_images_v25.py` is an automated quality control and routing pipeline designed to screen datasets for **Sensor & Optical Failures** before they enter 3D reconstruction pipelines (NeRF, Gaussian Splatting).
 
-Because passive reconstruction algorithms rely on consistent feature extraction, images with **Radiometric Anomalies** (Saturation Clipping, Exposure Failure) or **Optical Degradation** (Blur, Noise) frequently cause "floaters" or geometry collapse in the final model.
+`load_images_legend.py` is an advanced quality control pipeline designed to screen datasets for **3D Reconstruction (NeRF/Gaussian Splatting)**. This updated version features **Enhanced Diagnostic Graphs** with clear legends, axis labels, and a comprehensive "Inspection Report" to make debugging easier.
 
-This script performs two critical tasks:
-1.  **Screening:** Filters out defects using a **"Three-Pillar"** detection logic.
-2.  **Routing:** Automatically tags healthy images for **Novel View Augmentation** (`NOVEL_VIEW`) and defective images for **Inpainting** (`REPAIR`).
+It automatically filters out images that would cause "floaters" or geometry collapse and routes them for repair, ensuring only high-quality data reaches the training stage.
 
 ---
 
-## ⚙️ The "Three-Pillar" Logic
+## ⚙️ The "Five-Pillar" Logic
 
-The script evaluates every image against three distinct failure modes. If **ANY** of these checks fail, the image is flagged for repair.
+The script evaluates every image against **five** distinct failure modes using specific thresholds for `natural` (real-world) and `synthetic` (blender/render) data.
 
-### **Pillar 1: Radiometric Saturation (Color Integrity)**
-* **Hypothesis:** When a sensor's color channel clips (reaches 255), texture details are lost, leaving "flat" neon patches that cannot be feature-matched.
-* **Method:**
-    * Converts image to **HSV** colorspace.
-    * Calculates the percentage of pixels with **Saturation > 250**.
+### **Pillar 1: Optical Quality (Blur & Noise)**
+
+* **Method:** Uses **MUSIQ (Multi-scale Image Quality Transformer)** via `pyiqa` to score perceived sharpness.
+* **Thresholds (Fail if Score < X):**
+* **Natural:** < 40.0
+* **Synthetic:** < 65.0
+
+
+
+### **Pillar 2: Radiometric Saturation (Neon/Clipping)**
+
+* **Method:** Analyzes the **Saturation (S)** channel in HSV space. It checks for "Neon" artifacts where color data is clipped.
 * **Thresholds:**
-    * **Natural:** Fails if > 5% of pixels are clipped.
-    * **Synthetic:** Fails if > 8% of pixels are clipped.
+* **Clipped Pixels:** > 5% (Natural) or > 2% (Synthetic).
+* **Average Saturation:** > 180.0 (Natural) or > 160.0 (Synthetic).
 
-### **Pillar 2: Exposure Integrity (Dynamic Range)**
-* **Hypothesis:** "Flash Bangs" (Overexposure) or "Crushed Shadows" (Underexposure) result in zero data for the algorithm to use.
-* **Method:**
-    * Analyzes the **Value (V)** channel histogram of the object (ignoring background).
-    * Checks if the average brightness falls outside the "Safe Zone."
-* **Thresholds:**
-    * **Overexposure:** Avg Brightness > 220 (out of 255).
-    * **Underexposure:** Avg Brightness < 10 (synthetic) or < 30 (natural).
 
-### **Pillar 3: Optical Quality (Blur & Noise)**
-* **Hypothesis:** Defocus blur and high-ISO noise prevent precise edge detection.
-* **Method:**
-    * Uses **MUSIQ (Multi-scale Image Quality Transformer)**, a pre-trained AI metric.
-    * This model aligns with human perception of sharpness and clarity.
+
+### **Pillar 3: Exposure Integrity (Lighting)**
+
+* **Method:** Analyzes the **Value (V)** channel to detect overexposure (blown highlights) or underexposure (crushed shadows).
+* **Thresholds (Average Brightness 0-255):**
+* **Min (Dark):** < 45.0
+* **Max (Bright):** > 250.0 (Natural) or > 230.0 (Synthetic).
+
+
+
+### **Pillar 4: Contrast (Flatness)**
+
+* **Method:** Calculates the standard deviation of the V channel. Low variance means the image is "flat" and lacks feature definition.
 * **Thresholds:**
-    * **Fail:** MUSIQ Score < 40 (Natural) or < 65 (Synthetic).
+* **Fail if:** < 10.0 (Natural) or < 25.0 (Synthetic).
+
+
+
+### **Pillar 5: Color Cast (Tint)**
+
+* **Method:** Converts to **LAB Colorspace** and measures the distance of the average pixel from neutral gray (128, 128).
+* **Thresholds:**
+* **Fail if:** Distance > 60.0 (Natural) or > 50.0 (Synthetic).
+
+
 
 ---
 
 ## 🔀 Auto-Routing Logic
 
-Unlike previous versions which simply "Accepted" or "Rejected" images, v25 automatically assigns a workflow decision to every image:
+Every image is automatically assigned a decision tag based on the Five Pillars:
 
 | Condition | Decision Tag | Downstream Action |
-| :--- | :--- | :--- |
+| --- | --- | --- |
 | **FAILED any Pillar** | `REPAIR` | Sent to **Inpainting Pipeline** to fix artifacts. |
-| **PASSED all Pillars** | `NOVEL_VIEW` | Sent to **Img2Img Pipeline** to generate new camera angles (Data Augmentation). |
+| **PASSED all Pillars** | `NOVEL_VIEW` | Sent to **Img2Img Pipeline** to generate new camera angles. |
 
 ---
 
-## 📊 Visual Verification & Debugging
+## 📊 Visual Verification (Enhanced)
 
-When running with `--debug`, the script generates a **3-Panel Analysis Image** for every file. Here is how to interpret them:
+When running with `--debug`, the script generates a **High-Fidelity 3-Panel Analysis Image** for every file:
 
-### **Panel 1: Status & Reason**
-* **Visual:** The original image with a colored title.
-* **Red Title:** `FAIL` (e.g., `FAIL: Neon Clip (12.4%)`).
-* **Green Title:** `PASS`.
-* **Use Case:** Quick visual confirmation of *why* an image was rejected.
+### **Panel 1: Status & Quality**
 
-### **Panel 2: Saturation Heatmap**
-* **Visual:** A heat map of the object.
+* **Visual:** The original image.
+* **Title:** Color-coded `PASS` (Green) or `REJECT` (Red).
+* **Content:** Displays the specific **Reason** for failure (e.g., "Neon", "Blurry") and the raw MUSIQ score.
+
+### **Panel 2: Color Balance (RGB Histogram)**
+
+* **Visual:** A line graph showing the distribution of Red, Green, and Blue pixels.
+* **Upgrades:**
+* **Legend:** Clearly labels "Red Channel", "Green Channel", etc.
+* **Axis Labels:** "Pixel Brightness" (X) and "Pixel Count" (Y).
+* **Warning:** Displays a bold `❌ UNBALANCED` text overlay if a color cast is detected.
+
+
+
+### **Panel 3: Inspection Report**
+
+* **Visual:** A structured list of all 5 metrics vs. their limits.
 * **Interpretation:**
-    * **Black/Purple:** Normal saturation.
-    * **Bright Yellow/Orange:** **"Deep Fried"** zones.
-* **Failure Indicator:** If you see large patches of glowing yellow, the sensor was clipping color data.
+* **Icons:** ✅ for Pass, ❌ for Fail.
+* **Data:** Shows exact values (e.g., "Saturation: 12.4% (Limit 5.0%)").
+* **Use Case:** Allows instant verification of *how close* an image was to failing.
 
-### **Panel 3: Exposure Histogram**
-* **Visual:** A grey mountain graph representing pixel brightness distribution (0=Black, 255=White).
-* **Interpretation:**
-    * **Centered Mountain:** Good exposure.
-    * **Smashed to Right Wall:** Overexposed (Blown Highlights).
-    * **Smashed to Left Wall:** Underexposed (Crushed Shadows).
-* **Red Dashed Lines:** These mark the **Min/Max Safe Limits**. If the mountain's bulk is outside these lines, the image fails.
+
 
 ---
 
 ## 🚀 Usage
 
 ### **Prerequisites**
+
 * Python 3.x
-* PyTorch (CPU or CUDA/MPS)
-* PyIQA (for MUSIQ)
+* **PyIQA** (Critical for MUSIQ metric)
 * OpenCV, NumPy, Matplotlib
 
 ```bash
@@ -96,12 +115,10 @@ pip install torch pyiqa opencv-python numpy matplotlib tqdm
 
 ### **Running the Screener**
 
-To scan a dataset (e.g., the output from the corruption generator):
-
 ```bash
-python load_images_v25.py \
-  --input_dir ./output_data/lego \
-  --mode synthetic \
+python load_images_legend.py \
+  --input_dir ./output_data/train \
+  --mode natural \
   --out_dir ./preprocessed \
   --debug
 
@@ -112,44 +129,27 @@ python load_images_v25.py \
 | Argument | Description | Default |
 | --- | --- | --- |
 | `--input_dir` | Root folder containing the dataset. | **Required** |
-| `--mode` | `natural` (more lenient) or `synthetic` (stricter). | `synthetic` |
-| `--out_dir` | Where to save the `manifest.json` and debug visuals. | `./output` |
-| `--debug` | Enable generation of 3-panel diagnostic charts. | `False` |
-| `--test_image` | Run analysis on a single file instead of a folder. | `None` |
+| `--mode` | `natural` (lenient) or `synthetic` (strict). | `synthetic` |
+| `--debug` | Generate the 3-panel charts with legends. | `False` |
+| `--test_image` | Run analysis on a single file path. | `None` |
 
 ---
 
 ## 📂 Output Artifacts
 
-1. **`manifest.json`**: The master record used by downstream steps.
-```json
-[
-  {
-    "filename": "r_12.png",
-    "score": 32.5,
-    "decision": "REPAIR",
-    "note": "Low Quality (32.5 < 65.0)"
-  },
-  {
-    "filename": "r_13.png",
-    "score": 75.2,
-    "decision": "NOVEL_VIEW",
-    "note": "High Quality - Selected for Novel View"
-  }
-]
-
-```
-
-
-2. **`processed_train/`**: A copy of the images (can be used as a clean set).
-3. **`debug_visuals/`**: The 3-panel analysis images (only if `--debug` is ON).
+1. **`manifest.json`**: Master log containing scores, decisions, and failure notes for every image.
+2. **`processed_train/`**: Folder containing only the images that **Passed** (clean copy).
+3. **`debug_visuals/`**: (If `--debug`) The detailed 3-panel report cards for manual inspection.
 
 ---
 
-## 🧠 Why This Matters for NeRF/3DGS?
-NeRF algorithms assume that the color of a point stays consistent across views.
+## 🧠 Why This Matters?
 
-* **Saturation/Exposure Clipping** violates this by clamping values, making points look like flat sheets rather than textured surfaces.
-* **Blur** smears features across pixels, causing the "Feature Matcher" to place points at the wrong depth.
+By strictly enforcing these 5 pillars, we ensure:
 
-By filtering these out **before** training, we prevent "floaters" (artifacts caused by noise) and "holes" (artifacts caused by clipping) in the final 3D model.
+1. **Geometry:** No "flat" regions from clipping (Pillars 2 & 4).
+2. **Texture:** Sharp features for matching (Pillar 1).
+3. **Consistency:** Uniform lighting and white balance (Pillars 3 & 5), preventing the "chameleon effect" where an object changes color from different angles.
+
+... [The Three Different Image Histograms](https://www.youtube.com/watch?v=bULVoGQNo74) ...
+This video explains how to read RGB histograms, which corresponds directly to the new "Panel 2" visualization in the updated script.

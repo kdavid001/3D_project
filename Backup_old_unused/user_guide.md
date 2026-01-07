@@ -153,7 +153,7 @@ python ML_mask_gen.py \
 ## 8. Diffusion and Other Postprocess
 
 ```bash
-python diffusion_script.py --step1_dir ./output_train/train --step2_dir ./inpainting_ready
+python diffusion_script_for_synthesis.py --step1_dir ./output_train/train --step2_dir ./inpainting_ready
 ```
 
 ---

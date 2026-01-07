@@ -154,7 +154,7 @@ python ML_mask_gen.py \
 ## 8. Diffusion and Other Postprocess
 
 ```bash
-python diffusion_script.py --step1_dir ./output_train/train --step2_dir ./inpainting_ready
+python diffusion_script_for_synthesis.py --step1_dir ./output_train/train --step2_dir ./inpainting_ready
 ```
 
 ---
@@ -174,5 +174,23 @@ python rename.py --input_dir ./preprocessed/final_results
 
 ---
 
+
+
+
+
+## Standard Run (Default settings):
+
+```
+!python clean_splats.py -i PC_output/hotdog_final_run/point_cloud/iteration_30000/point_cloud.ply
+```
+
+
+### Aggressive Cleaning 
+(If you still see too many floaters): Increase opacity threshold (e.g., 0.1) and decrease scale threshold (e.g., 1.0).
+``` 
+!python clean_splats.py -i PC_output/hotdog_final_run/point_cloud/iteration_30000/point_cloud.ply \
+--opacity_threshold 0.1 \
+--scale_threshold 1.0
+```
+
 **Maintainer:** kdavid001
-````

@@ -1,15 +1,38 @@
 #!/usr/bin/env python3
 """
-COMBINED PIPELINE V7 (FIXED LAYOUT): run_full_generation_v7.py
+COMBINED PIPELINE V10 (Universal: Synthesis + Restoration)
+
+MODES:
+1. --mode synthesis (DEFAULT): Runs existing V7 logic (Zero-123, 2x3 Grid, Black BG).
+2. --mode restoration: Runs new ControlNet logic (Fixes natural images, Keeps BG).
 
 UPDATES:
-1. LAYOUT FIX: Adjusted slicing for 2 Columns x 3 Rows (2x3).
-2. DEBUG SAVE: Still saves the full grid so you can double-check.
-3. FORCE UNIFORMITY: 1024x1024 output.
+- Merged V7 Synthesis logic with V9 Restoration logic.
+- Synthesis mode preserves exact V7 behavior.
+- Restoration mode skips masking/centering to support natural images.
 """
 
 import sys
 import os
+import shutil
+import gc
+import argparse
+import json
+import torch
+import cv2
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
+from basicsr.archs.rrdbnet_arch import RRDBNet
+from realesrgan import RealESRGANer
+
+# Diffusers imports (Added ControlNet classes for Restoration mode)
+from diffusers import (
+    DiffusionPipeline,
+    StableDiffusionControlNetImg2ImgPipeline,
+    ControlNetModel,
+    UniPCMultistepScheduler
+)
 
 # ==========================================
 # 🚨 CRITICAL PATCH 🚨
@@ -23,21 +46,9 @@ except ImportError:
         sys.modules["torchvision.transforms.functional_tensor"] = functional
     except ImportError:
         pass
+
+
 # ==========================================
-
-import shutil
-import gc
-import argparse
-import json
-import torch
-import cv2
-import numpy as np
-from PIL import Image
-from diffusers import DiffusionPipeline
-from tqdm import tqdm
-from basicsr.archs.rrdbnet_arch import RRDBNet
-from realesrgan import RealESRGANer
-
 
 def get_name_from_path(path):
     return os.path.basename(os.path.normpath(path))
@@ -49,9 +60,13 @@ def flush_memory():
 
 
 # ==========================================
-# PHASE 0: PRE-PROCESSING
+# PHASE 0: PRE-PROCESSING (Synthesis Only)
 # ==========================================
 def process_for_zero123(pil_image):
+    """
+    Applies black background and centering.
+    ONLY used for Synthesis Mode.
+    """
     canvas_size = 512
     canvas = Image.new("RGB", (canvas_size, canvas_size), (0, 0, 0))  # Black BG
 
@@ -69,16 +84,13 @@ def process_for_zero123(pil_image):
 
 
 # ==========================================
-# PHASE 1: SYNTHESIS (FIXED FOR 2x3 GRID)
+# PHASE 1A: SYNTHESIS (Your V7 Logic)
 # ==========================================
 def crop_zero123_grid_dynamic(grid_img, base_filename, output_dir):
     w, h = grid_img.size
-
-    # --- 🚨 THE FIX IS HERE 🚨 ---
     # Layout: 2 Columns, 3 Rows
     tile_w = w // 2
     tile_h = h // 3
-    # -----------------------------
 
     count = 0
     generated_files = []
@@ -86,7 +98,6 @@ def crop_zero123_grid_dynamic(grid_img, base_filename, output_dir):
     # Iterate: 3 Rows down, 2 Columns across
     for row in range(3):
         for col in range(2):
-            # Calculate coordinates
             left = col * tile_w
             top = row * tile_h
             right = left + tile_w
@@ -98,12 +109,11 @@ def crop_zero123_grid_dynamic(grid_img, base_filename, output_dir):
             view.save(os.path.join(output_dir, save_name))
             generated_files.append(save_name)
             count += 1
-
     return generated_files
 
 
 def run_synthesis_phase(input_dir, temp_dir, candidates):
-    print(f"\n🔹 PHASE 1: Synthesizing (2x3 Grid Layout)...")
+    print(f"\n🔹 PHASE 1: Synthesizing (Zero-123++ Mode)...")
 
     pipeline = DiffusionPipeline.from_pretrained(
         "sudo-ai/zero123plus-v1.2",
@@ -122,15 +132,13 @@ def run_synthesis_phase(input_dir, temp_dir, candidates):
         if not img_path: continue
 
         input_img = Image.open(img_path).convert("RGB")
+
+        # V7 Logic: Force black background
         clean_input = process_for_zero123(input_img)
         clean_input.save(os.path.join(temp_dir, f"anchor_{filename}"))
 
         result_grid = pipeline(clean_input, num_inference_steps=75).images[0]
-
-        # Save Debug Grid
         result_grid.save(os.path.join(temp_dir, f"FULL_GRID_{filename}"))
-
-        # Cut using NEW 2x3 logic
         crop_zero123_grid_dynamic(result_grid, filename, temp_dir)
 
     del pipeline
@@ -138,7 +146,73 @@ def run_synthesis_phase(input_dir, temp_dir, candidates):
 
 
 # ==========================================
-# PHASE 2: UPSCALE & STANDARDIZE
+# PHASE 1B: RESTORATION (New Logic)
+# ==========================================
+def run_restoration_phase(input_dir, temp_dir, candidates, prompt):
+    print(f"\n🔹 PHASE 1: Restoring (ControlNet Tile Mode)...")
+    print(f"   Prompt: '{prompt}'")
+
+    # Load ControlNet Tile
+    controlnet = ControlNetModel.from_pretrained(
+        "lllyasviel/control_v11f1e_sd15_tile",
+        torch_dtype=torch.float16
+    )
+
+    # Load Stable Diffusion 1.5
+    pipe = StableDiffusionControlNetImg2ImgPipeline.from_pretrained(
+        "runwayml/stable-diffusion-v1-5",
+        controlnet=controlnet,
+        torch_dtype=torch.float16,
+        safety_checker=None
+    ).to("cuda")
+
+    pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+    pipe.enable_model_cpu_offload()
+
+    for entry in tqdm(candidates, desc="Restoring Images"):
+        filename = entry["filename"]
+
+        # Search multiple common folders
+        paths = [
+            os.path.join(input_dir, "processed_train", filename),
+            os.path.join(input_dir, "images", filename),
+            os.path.join(input_dir, "input", filename),
+            os.path.join(input_dir, filename)
+        ]
+        img_path = next((p for p in paths if os.path.exists(p)), None)
+        if not img_path: continue
+
+        # Load RAW image (No masking!)
+        original_image = Image.open(img_path).convert("RGB")
+
+        # Resize to be divisible by 8 (Requirement for SD)
+        w, h = original_image.size
+        new_w = (w // 8) * 8
+        new_h = (h // 8) * 8
+        if new_w != w or new_h != h:
+            original_image = original_image.resize((new_w, new_h))
+
+        # Run Restoration
+        clean_image = pipe(
+            prompt,
+            image=original_image,
+            control_image=original_image,
+            negative_prompt="blur, noise, grain, low resolution, distorted, plastic, cartoon",
+            num_inference_steps=30,
+            strength=0.35,  # 0.35 = Safe cleaning. 0.5 = Stronger AI hallucination.
+            guidance_scale=7.0
+        ).images[0]
+
+        save_name = f"restored_{filename}"
+        clean_image.save(os.path.join(temp_dir, save_name))
+
+    del pipe
+    del controlnet
+    flush_memory()
+
+
+# ==========================================
+# PHASE 2: UPSCALE (Shared)
 # ==========================================
 def run_upscale_phase(temp_dir, final_dir):
     print(f"\n🔹 PHASE 2: Upscaling & Standardizing to 1024x1024...")
@@ -158,8 +232,8 @@ def run_upscale_phase(temp_dir, final_dir):
     files = [f for f in os.listdir(temp_dir) if f.lower().endswith(valid_exts)]
 
     for filename in tqdm(files, desc="Standardizing"):
-        # Skip Full Grids
-        if "FULL_GRID" in filename: continue
+        if "FULL_GRID" in filename: continue  # Skip debug grids
+        if "anchor_" in filename: continue  # Skip anchors
 
         img_path = os.path.join(temp_dir, filename)
         img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
@@ -167,7 +241,7 @@ def run_upscale_phase(temp_dir, final_dir):
 
         h, w = img.shape[:2]
 
-        if w < 800:
+        if w < 1024 or h < 1024:
             output, _ = upsampler.enhance(img, outscale=4)
         else:
             output = img
@@ -178,30 +252,71 @@ def run_upscale_phase(temp_dir, final_dir):
 
 def main(args):
     print(f"🔍 Hardware: {torch.cuda.get_device_name(0)}")
+    print(f"⚙️  MODE: {args.mode.upper()}")
 
     dataset_name = get_name_from_path(args.input_dir)
-    unique_suffix = "fixed"
+    # Different output suffix for different modes to avoid overwriting
+    unique_suffix = "fixed" if args.mode == "synthesis" else "restored"
 
     temp_dir = os.path.join(args.out_dir, f"temp_{dataset_name}_{unique_suffix}")
-    final_dir = os.path.join(args.out_dir, f"final_{dataset_name}_{unique_suffix}")
+    final_dir = os.path.join(args.out_dir, f"final_{dataset_name}_run")
 
     if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
     if os.path.exists(final_dir): shutil.rmtree(final_dir)
     os.makedirs(temp_dir, exist_ok=True)
     os.makedirs(final_dir, exist_ok=True)
 
+    # --- CANDIDATE SELECTION LOGIC ---
     manifest_path = os.path.join(args.input_dir, "manifest.json")
-    with open(manifest_path, 'r') as f:
-        manifest = json.load(f)
+    candidates = []
 
-    candidates = [e for e in manifest if e.get("decision") in ["NOVEL_VIEW", "NONE"]]
-    candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
-    candidates = candidates[:20]
+    if os.path.exists(manifest_path):
+        with open(manifest_path, 'r') as f:
+            manifest = json.load(f)
 
-    run_synthesis_phase(args.input_dir, temp_dir, candidates)
-    run_upscale_phase(temp_dir, final_dir)
+        if args.mode == "synthesis":
+            # Existing V7 logic: Novel View or None
+            candidates = [e for e in manifest if e.get("decision") in ["NOVEL_VIEW", "NONE"]]
+            candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
+            candidates = candidates[:20]
 
-    print(f"\n✅✅ DONE! (Used 2x3 Grid Layout)")
+        elif args.mode == "restoration":
+            # New Logic: Look for REPAIR or BAD tags
+            target_decisions = ["REPAIR", "BAD", "DISCARD", "blur"]
+            candidates = [e for e in manifest if e.get("decision") in target_decisions]
+
+            # If no REPAIR tags found, maybe user wants to repair EVERYTHING?
+            if not candidates:
+                print("⚠️ No images tagged 'REPAIR'. Switching to ALL images in manifest.")
+                candidates = manifest
+
+    else:
+        # Fallback: No manifest = Process all images in folder
+        print("⚠️ No manifest found. Processing ALL images in folder.")
+
+        # Look for images folder or just root
+        search_path = os.path.join(args.input_dir, "images")
+        if not os.path.exists(search_path):
+            search_path = args.input_dir
+
+        raw_files = [f for f in os.listdir(search_path) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
+        candidates = [{"filename": f} for f in raw_files]
+
+    print(f"✅ Selected {len(candidates)} candidates.")
+
+    # --- EXECUTION ---
+    if len(candidates) > 0:
+        if args.mode == "synthesis":
+            run_synthesis_phase(args.input_dir, temp_dir, candidates)
+        elif args.mode == "restoration":
+            run_restoration_phase(args.input_dir, temp_dir, candidates, args.prompt)
+
+        # Both modes run the Upscaler
+        run_upscale_phase(temp_dir, final_dir)
+    else:
+        print("❌ No candidates found.")
+
+    print(f"\n✅✅ DONE! (Mode: {args.mode})")
     print(f"📂 Output: {final_dir}")
 
 
@@ -209,5 +324,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", required=True)
     parser.add_argument("--out_dir", required=True)
+
+    # New Arguments
+    parser.add_argument("--mode", choices=["synthesis", "restoration"], default="synthesis",
+                        help="Choose 'synthesis' for Zero-123 (V7) or 'restoration' for ControlNet.")
+    parser.add_argument("--prompt", type=str, default="high quality photo, detailed, sharp focus, 8k",
+                        help="Prompt for Restoration mode only.")
+
     args = parser.parse_args()
     main(args)
