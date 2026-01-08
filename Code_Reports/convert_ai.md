@@ -2,7 +2,7 @@
 
 ## 📌 Overview
 
-`run_ai_pipeline.py` is a modern replacement for the standard COLMAP `convert.py` script. Instead of using "hand-crafted" feature detectors like SIFT (which fail on smooth walls or low texture), this pipeline uses **Deep Learning** to "see" and match features that traditional algorithms miss.
+`convert.ai.py` is a modern replacement for the standard COLMAP `convert.py` script. Instead of using "hand-crafted" feature detectors like SIFT (which fail on smooth walls or low texture), this pipeline uses **Deep Learning** to "see" and match features that traditional algorithms miss.
 
 It automates the entire **Structure-from-Motion (SfM)** process using the **Hierarchical Localization (hloc)** library, taking you from raw images to a trained sparse point cloud ready for Gaussian Splatting.
 

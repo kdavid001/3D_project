@@ -94,6 +94,7 @@ def get_quality_score(img_path, use_crop):
         cropped = crop_to_content(img_path)
         if cropped: target = cropped
     with torch.no_grad():
+        # first checker uses an IQA model
         score = IQA_MODEL(target)
     if use_crop and target != img_path and os.path.exists(target):
         os.remove(target)

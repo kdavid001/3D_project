@@ -2,7 +2,7 @@
 
 ## 📌 Overview
 
-`load_images_legend.py` is an advanced quality control pipeline designed to screen datasets for **3D Reconstruction (NeRF/Gaussian Splatting)**. This updated version features **Enhanced Diagnostic Graphs** with clear legends, axis labels, and a comprehensive "Inspection Report" to make debugging easier.
+`process_files.py` is an advanced quality control pipeline designed to screen datasets for **3D Reconstruction (NeRF/Gaussian Splatting)**. This updated version features **Enhanced Diagnostic Graphs** with clear legends, axis labels, and a comprehensive "Inspection Report" to make debugging easier.
 
 It automatically filters out images that would cause "floaters" or geometry collapse and routes them for repair, ensuring only high-quality data reaches the training stage.
 
