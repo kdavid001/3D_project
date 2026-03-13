@@ -7,6 +7,7 @@ Updates:
 2. ADDED: Radiometric Corruptions (Saturation, Exposure Extremes).
 3. KEEPS: Optical Corruptions (Defocus Blur, Noise).
 4. KEEPS: Sector Deletion (Missing Views logic).
+5. ADDED: Single Image Auto-Detect (Generates isolated failure modes for thesis collages).
 """
 import json
 import os
@@ -110,6 +111,47 @@ def copy_if_exists(src, dst):
 def main(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
+
+    # ==========================================
+    # NEW: SINGLE IMAGE AUTO-DETECT LOGIC
+    # ==========================================
+    if os.path.isfile(args.clean_dir):
+        print(f"📷 Single image mode detected: {args.clean_dir}")
+        os.makedirs(args.out_dir, exist_ok=True)
+
+        img = cv2.imread(args.clean_dir)
+        if img is None:
+            raise Exception(f"❌ Could not read image {args.clean_dir}")
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        fname = os.path.basename(args.clean_dir)
+        name, ext = os.path.splitext(fname)
+
+        # 1. Generate standard random corruption based on probability
+        if random.random() > args.corrupt_prob:
+            out_img = img
+            out_path = os.path.join(args.out_dir, f"{name}_clean{ext}")
+            print(f"Status: Saved Clean (Failed corrupt_prob roll)")
+        else:
+            out_img = corrupt_image(img)
+            out_path = os.path.join(args.out_dir, f"{name}_random_corrupt{ext}")
+            print(f"Status: Saved Random Corruption")
+        Image.fromarray(out_img).save(out_path)
+
+        # 2. Thesis Collage Generator (Always generates all 4 variants)
+        print("\n🎓 Thesis Mode: Generating all isolated failure modes for visual reporting...")
+        Image.fromarray(apply_saturation_boost(img)).save(os.path.join(args.out_dir, f"{name}_deepfried{ext}"))
+        Image.fromarray(apply_exposure_failure(img)).save(os.path.join(args.out_dir, f"{name}_exposure{ext}"))
+        Image.fromarray(apply_defocus_blur(img)).save(os.path.join(args.out_dir, f"{name}_blur{ext}"))
+        Image.fromarray(apply_iso_noise(img)).save(os.path.join(args.out_dir, f"{name}_noise{ext}"))
+
+        print(f"✔ All single-image variations saved to {args.out_dir}")
+        return
+    # ==========================================
+    # END SINGLE IMAGE LOGIC
+    # ==========================================
+
+    # Original Directory Logic
     file_name = get_name_from_path(args.clean_dir)
 
     # 1. Setup Input Directory
@@ -152,7 +194,6 @@ def main(args):
                 fname += ".png"
 
             # Check Geometry (Negative X Sector)
-            # This simulates PHYSICAL OCCLUSION (Missing data), not Corruption.
             matrix = frame['transform_matrix']
             x_pos = matrix[0][3]
 
@@ -200,7 +241,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--clean_dir", required=True, help="Path to input dataset root")
+    parser.add_argument("--clean_dir", required=True, help="Path to input dataset root OR a single image file")
     parser.add_argument("--out_dir", required=True, help="Path to output root")
     parser.add_argument("--use_geometry", action='store_true', help="If set, reads JSON and deletes Negative-X sector.")
     parser.add_argument("--corrupt_prob", type=float, default=0.5, help="Chance to corrupt an image (0.0 to 1.0)")
