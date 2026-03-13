@@ -31,6 +31,15 @@ pip install -r requirements.txt
 
 You can corrupt your dataset for data augmentation or robustness testing.
 
+### Single Image Processing
+```bash
+python3 corrupt_data.py \
+  --clean_dir ./single_image_location/ \
+  --out_dir ./output_single_test/ \
+  --corrupt_prob 1.0 \
+  --seed 42
+```
+
 ### For Natural Data
 
 ```bash
