@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-corrupt_dataset_v3.py - The "Sensor Failure" Generator
+corrupt_dataset_v3.py - The "Sensor/Image Failure" Generator
 
 Updates:
 1. REMOVED: Black Holes (Geometry Artifacts).
