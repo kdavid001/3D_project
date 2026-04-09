@@ -90,33 +90,37 @@ def main(args):
     model = AsymmetricCroCo3DStereo.from_pretrained("naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt").to("cuda")
     model.eval()
 
-    print(f"📂 [2/4] Loading Hybrid Data from: {args.input_dir}")
-    image_paths = [os.path.join(args.input_dir, f) for f in sorted(os.listdir(args.input_dir)) if
-                   f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    print(f"📂 [2/4] Scanning Hybrid Data from: {args.input_dir}")
+    all_image_paths = [os.path.join(args.input_dir, f) for f in sorted(os.listdir(args.input_dir)) if
+                       f.lower().endswith(('.png', '.jpg', '.jpeg'))]
 
-    # 👇 HACK 1: VRAM Protection. 256 resolution is 75% lighter than 512!
-    print(f"      -> Converting {len(image_paths)} images to 256px Neural Tensors...")
-    images = load_images(image_paths, size=256)
-
-    if len(image_paths) > 50:
-        # swin-2 is slightly lighter than swin-3
-        graph_type = "swin-2"
-        print("      -> ⚠️ Massive dataset detected! Using 'swin-2' sliding window.")
+    # 👇 THE SUB-SAMPLING ENGINE
+    # Automatically forces the dataset to 50 frames to allow for global optimization
+    max_frames = 50
+    if len(all_image_paths) > max_frames:
+        print(
+            f"      -> 🔪 Dataset is {len(all_image_paths)} images. Sub-sampling to {max_frames} frames to prevent VRAM overflow.")
+        step = max(1, len(all_image_paths) // max_frames)
+        image_paths = all_image_paths[::step][:max_frames]
     else:
-        graph_type = "complete"
+        image_paths = all_image_paths
 
-    pairs = make_pairs(images, scene_graph=graph_type, prefilter=None, symmetrize=True)
+    print(f"      -> Converting {len(image_paths)} images to 512px Neural Tensors...")
+    images = load_images(image_paths, size=512)
+
+    # 👇 THE GLOBAL FIX: Because we guarantee <=50 frames, we can safely force 'complete'
+    print("      -> ⚠️ Using 'complete' global scene graph for maximum camera accuracy.")
+    pairs = make_pairs(images, scene_graph="complete", prefilter=None, symmetrize=True)
 
     print("🧠 [3/4] Running Neural 3D Alignment (Bypassing Physics Engine)...")
     with torch.no_grad():
-        output = inference(pairs, model, device="cuda", batch_size=2)
+        output = inference(pairs, model, device="cuda", batch_size=1)
 
-        # 👇 HACK 2: Flush the GPU garbage collector before the massive alignment step
-        print("      -> 🧹 Flushing GPU VRAM cache...")
-        torch.cuda.empty_cache()
+    print("      -> 🧹 Flushing GPU VRAM cache...")
+    torch.cuda.empty_cache()
 
-        scene = global_aligner(output, device="cuda", mode=GlobalAlignerMode.PointCloudOptimizer)
-        scene.compute_global_alignment(init="mst", niter=300, schedule="linear", lr=0.01)
+    scene = global_aligner(output, device="cuda", mode=GlobalAlignerMode.PointCloudOptimizer)
+    scene.compute_global_alignment(init="mst", niter=300, schedule="linear", lr=0.01)
 
     print(f"💾 [4/4] Manually generating COLMAP Database at: {args.out_dir}")
     export_colmap_manual(scene, args.out_dir, image_paths)
