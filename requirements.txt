@@ -1,5 +1,8 @@
 # --- Core Math & Image Processing ---
-numpy
+numpy==1.26.4
+pymatting
+rembg
+cupy-cuda12x
 scipy
 matplotlib
 scikit-image
@@ -7,19 +10,25 @@ opencv-python
 Pillow
 tqdm
 scikit-learn
+pyiqa
 
 # --- PyTorch & AI Acceleration ---
 # (Colab usually has torch pre-installed, but good to list for consistency)
 torch
 torchvision
 xformers
-accelerate
+accelerate>=0.28.0
 safetensors
 
-# --- Generative AI (Zero123++) ---
-diffusers
-transformers
+# --- Generative AI (SV3D, Zero123++, ControlNet) ---
+diffusers==0.26.3
+transformers==4.38.2
+peft==0.10.0
+accelerate==0.28.0
 invisible-watermark
+controlnet_aux
+omegaconf
+huggingface_hub==0.22.2
 
 # --- Background Removal ---
 rembg

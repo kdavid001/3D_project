@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     # Define arguments
     parser.add_argument("--source", type=str, required=True, help="Path to the v7_final output folder")
-    parser.add_argument("--output", type=str, required=True, help="Root folder for GS Input (e.g., GS_input)")
+    parser.add_argument("--output", type=str, required=True, help="Root folder for GS Input (e.g., input_database)")
     parser.add_argument("--name", type=str, required=True, help="Name of the model (e.g., chair, lego)")
 
     args = parser.parse_args()

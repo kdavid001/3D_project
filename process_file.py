@@ -94,7 +94,6 @@ def get_quality_score(img_path, use_crop):
         cropped = crop_to_content(img_path)
         if cropped: target = cropped
     with torch.no_grad():
-        # first checker uses an IQA model
         score = IQA_MODEL(target)
     if use_crop and target != img_path and os.path.exists(target):
         os.remove(target)
@@ -238,14 +237,16 @@ def process_batch(args):
     files = [f for f in os.listdir(search_dir) if f.lower().endswith(tuple(SUPPORTED_EXTS))]
     files.sort()
 
-    if not os.path.exists(args.out_dir): os.makedirs(args.out_dir)
+    # --- THE FIX: Aggressive Google Drive Folder Creation ---
+    os.makedirs(args.out_dir, exist_ok=True)
+
     processed_dir = os.path.join(args.out_dir, "processed_train")
-    if not os.path.exists(processed_dir): os.makedirs(processed_dir)
+    os.makedirs(processed_dir, exist_ok=True)
 
     debug_dir = None
     if args.debug:
         debug_dir = os.path.join(args.out_dir, "debug_visuals")
-        if not os.path.exists(debug_dir): os.makedirs(debug_dir)
+        os.makedirs(debug_dir, exist_ok=True)
 
     print(f"📂 Scanning {len(files)} images...")
     manifest_data = []
