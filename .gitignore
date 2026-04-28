@@ -18,7 +18,7 @@ Backup_old_unused/Mask_generation/manifest.json
 Backup_old_unused/Mask_generation/__pycache__/
 others
 inpainting_ready
-.idea/
+.idea
 nerf_synthetic
 output_processed
 output_train
@@ -26,3 +26,4 @@ GS_Input_bad
 GS_Outputs
 Renders
 Unused_ignored_files
+agents

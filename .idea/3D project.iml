@@ -3,9 +3,18 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/nsenv" />
+      <excludeFolder url="file://$MODULE_DIR$/Renders" />
+      <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/Backup_old_unused/Mask_generation/masks" />
+      <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/Backup_old_unused/Mask_generation/output" />
+      <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/Backup_old_unused/output_train" />
+      <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/GS_Input_bad" />
+      <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/inpainting_ready" />
+      <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/nerf_synthetic" />
       <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/others" />
       <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/others/Original Images" />
       <excludeFolder url="file://$MODULE_DIR$/Unused_ignored_files/others/inpainting_ready_train" />
+      <excludeFolder url="file://$MODULE_DIR$/output_processed" />
+      <excludeFolder url="file://$MODULE_DIR$/output_train" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
