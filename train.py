@@ -138,12 +138,20 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 inputs  = {k: v.to("cuda", dtype=torch.float16) for k, v in inputs.items()}
                 outputs = _d_model(**inputs)
 
-                # post_process_depth_estimation resizes to target_sizes internally.
-                # .float() is required — model ran in fp16, next ops need fp32.
-                pred = _d_processor.post_process_depth_estimation(
-                    outputs,
-                    target_sizes=[(cam.image_height, cam.image_width)]
-                )[0]["predicted_depth"].float()                      # [H, W], larger = closer
+                # outputs.predicted_depth: [1, H_enc, W_enc] (fp16 from model).
+                # Resize to the camera's resolution — works on every transformers version
+                # regardless of whether the processor is DPTImageProcessor or
+                # DepthAnythingImageProcessor (post_process_depth_estimation only
+                # exists on the newer class and crashes on older installs).
+                raw = outputs.predicted_depth                        # [1, H_enc, W_enc]
+                if raw.dim() == 2:
+                    raw = raw.unsqueeze(0)                           # [1, H_enc, W_enc]
+                pred = F.interpolate(
+                    raw.unsqueeze(1).float(),                        # [1, 1, H_enc, W_enc]
+                    size=(cam.image_height, cam.image_width),
+                    mode='bilinear',
+                    align_corners=False,
+                ).squeeze()                                          # [H, W], larger = closer
 
                 # Normalise to [0, 1] — relative (scale-invariant) depth prior.
                 # The scale-shift alignment at loss time handles the metric difference
