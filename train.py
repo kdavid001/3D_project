@@ -301,7 +301,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             # opacity to match the known object extent without touching SH colour.
             with torch.no_grad():
                 gt_lum  = 0.299 * gt_image[0] + 0.587 * gt_image[1] + 0.114 * gt_image[2]  # [H,W]
-                gt_mask = (gt_lum > 0.05).float()                                             # [H,W]
+                # Threshold at 0.30: safely above Zero123++ grey backgrounds (~0.5
+                # luminance) while keeping dimly-lit object pixels. If your synth
+                # views have pure black backgrounds (remove_bg.py was run), drop
+                # this back to 0.05.
+                gt_mask = (gt_lum > 0.30).float()                                             # [H,W]
 
             rendered_alpha = (0.299 * image[0] + 0.587 * image[1] + 0.114 * image[2])        # [H,W]
             sil_loss = F.binary_cross_entropy(

@@ -1,105 +1,70 @@
-# 🧠 AI-Powered COLMAP Pipeline (hloc)
+# AI-Powered COLMAP Pipeline — `convert_ai.py`
 
-## 📌 Overview
-
-`convert.ai.py` is a modern replacement for the standard COLMAP `convert.py` script. Instead of using "hand-crafted" feature detectors like SIFT (which fail on smooth walls or low texture), this pipeline uses **Deep Learning** to "see" and match features that traditional algorithms miss.
-
-It automates the entire **Structure-from-Motion (SfM)** process using the **Hierarchical Localization (hloc)** library, taking you from raw images to a trained sparse point cloud ready for Gaussian Splatting.
+> **STATUS: ❌ NOT IN USE** — Replaced by `inject_poses.py`. Still present in Full_pipeline_v1.ipynb Cell 9 but should be swapped out. Kept in codebase as a reference implementation.
 
 ---
 
-## ⚙️ The "SuperPoint + LightGlue" Engine
+## Why It Was Replaced
 
-This pipeline utilizes two specific AI models that are currently the gold standard in computer vision:
+`convert_ai.py` uses SuperPoint + LightGlue feature matching for Structure-from-Motion. This works well on natural images with rich textures and gradients, but **collapses on black-background object images**:
 
-1. **Feature Extraction: SuperPoint**
-* **Old Way (SIFT):** Looks for high-contrast "blobs" or corners. Fails on white walls or sky.
-* **New Way (SuperPoint):** A neural network trained to find interest points even in textureless or repetitive regions.
+- Black backgrounds concentrate all SIFT/SuperPoint keypoints on the object silhouette only
+- Zero123++ synthesised views have micro-hallucinated textures that don't match real photos
+- Result: COLMAP registers only 2 of 28 cameras — unusable for 3DGS
 
-
-2. **Feature Matching: LightGlue**
-* **Old Way (Nearest Neighbor):** Matches points based on simple pixel similarity. Prone to outliers.
-* **New Way (LightGlue):** A deep network that "reasons" about the geometry of the scene. It rejects bad matches by understanding the 3D context, resulting in cleaner clouds with fewer outliers.
-
-
+`inject_poses.py` bypasses feature matching entirely by writing analytically known Zero123++ poses directly to COLMAP binary format. All cameras registered by construction.
 
 ---
 
-## 🚀 Key Features
+## When It Is Still Valid
 
-* **Zero-Setup Dependency:** Automatically clones and installs `SuperGlue` and `hloc` if they are missing.
-* **Exhaustive Matching:** Forces the AI to compare every image against every other image, ensuring maximum connectivity for small datasets (<100 images).
-* **Auto-Undistortion:** Includes a wrapper for the `colmap image_undistorter`. It reads the AI-generated camera model and corrects the images (straightening curved lines from lens distortion) so 3DGS can learn them.
-* **"Train-Ready" Formatting:** Automatically moves the resulting `.bin` files into the specific `sparse/0` folder structure required by the official Gaussian Splatting `train.py`.
+`convert_ai.py` remains the correct tool for **natural scene images with original backgrounds** (no black compositing), where the images are not Zero123++ outputs and have sufficient texture for feature matching. If you are ever running 3DGS on real-world photos without any synthetic augmentation, this is the right pipeline.
 
 ---
 
-## 🏃‍♂️ Usage
+## Overview
 
-### **Prerequisites**
+Automates the full Structure-from-Motion pipeline using the **Hierarchical Localization (hloc)** library:
 
-* **System:** Linux (Colab/Ubuntu) with `colmap` installed (`sudo apt install colmap`).
-* **Python:** 3.8+
-* **GPU:** Required for SuperPoint/LightGlue inference.
+1. **Cleanup** — deletes old `distorted/` and `sparse/` folders
+2. **Feature Extraction (SuperPoint)** — neural keypoints on every image
+3. **Feature Matching (LightGlue)** — exhaustive all-pairs geometric matching
+4. **Reconstruction (PyCOLMAP)** — solves camera positions in 3D space
+5. **Undistortion (COLMAP CLI)** — corrects lens distortion, outputs to `images/` + `sparse/0/`
 
-### **Command**
+---
+
+## Usage
 
 ```bash
-python run_ai_pipeline.py \
-  --source_path "/content/drive/MyDrive/.../gaussian_splatting/data/hotdog" \
-  --images "input"
-
+python convert_ai.py --source_path "/content/local_workspace/hotdog"
 ```
 
-### **Arguments**
-
-| Argument | Description | Default |
-| --- | --- | --- |
-| `--source_path` | The root folder of your project (containing the `input` folder). | **Required** |
-| `--images` | The name of the subfolder containing your source images. | `input` |
+| Argument | Description |
+|---|---|
+| `--source_path` | Root folder containing the `input/` subfolder |
+| `--images` | Subfolder name (default: `input`) |
 
 ---
 
-## 🧠 Pipeline Logic (Step-by-Step)
+## Common Issues
 
-1. **Cleanup:** Aggressively deletes old `distorted/` and `sparse/` folders to prevent mixing data from previous failed runs.
-2. **Extraction (SuperPoint):** Analyzes every image in `input/` and saves keypoints to `features.h5`.
-3. **Matching (LightGlue):** Compares keypoints across all image pairs and saves valid connections to `matches.h5`.
-4. **Reconstruction (PyCOLMAP):** Solves the math to determine where the cameras were in 3D space.
-* *Output:* A raw sparse model in `distorted/sparse`.
-
-
-5. **Undistortion (COLMAP CLI):**
-* Takes the raw model and images.
-* Calculates the lens distortion (pinhole/radial).
-* Saves **corrected** images to `images/` and a **new** model to `sparse/0`.
-
-
-6. **Final Handshake:** Checks if `cameras.bin`, `images.bin`, and `points3D.bin` are in the correct `sparse/0` folder. If not, it moves them there manually.
+- **SfM collapse on black-background images** — use `inject_poses.py` instead
+- **`Xvfb` Error** — use `xvfb-run -a python convert_ai.py ...` on headless servers
+- **Memory OOM on >200 images** — switch to `pairs_from_retrieval` (sequential) instead of exhaustive matching
 
 ---
 
-## ⚠️ Common Issues
+## Output Structure
 
-* **`Xvfb` Error:** If running on a headless server (like Colab), the script uses `xvfb-run` to fake a monitor for COLMAP. If this fails, ensure you installed `xvfb` (`sudo apt install xvfb`).
-* **Memory OOM:** LightGlue is efficient, but "Exhaustive Matching" on >200 images grows exponentially (). If you crash, you may need to switch the matching script to `pairs_from_retrieval` (sequential) instead of exhaustive.
-
----
-
-## 📂 Output Structure
-
-After running, your dataset folder will be fully populated:
-
-```text
+```
 /hotdog/
-├── input/              # Your original images
-├── distorted/          # Intermediate AI files (features.h5, matches.h5)
-├── images/             # NEW: Undistorted, straight images (used for training)
-├── sparse/
-│   └── 0/              # The 3D Model
-│       ├── cameras.bin
-│       ├── images.bin
-│       └── points3D.bin
-└── run_ai_pipeline.py
-
+├── input/              # Original images
+├── distorted/          # AI features.h5, matches.h5
+├── images/             # Undistorted images
+└── sparse/
+    └── 0/
+        ├── cameras.bin
+        ├── images.bin
+        └── points3D.bin
 ```

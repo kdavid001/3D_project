@@ -23,6 +23,7 @@ from PIL import Image
 from tqdm import tqdm
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from realesrgan import RealESRGANer
+from rembg import remove as rembg_remove
 
 # Diffusers imports
 from diffusers import (
@@ -140,7 +141,16 @@ def run_synthesis_phase(input_dir, temp_dir, candidates):
 
         result_grid = pipeline(clean_input, num_inference_steps=75).images[0]
         result_grid.save(os.path.join(temp_dir, f"FULL_GRID_{filename}"))
-        crop_zero123_grid_dynamic(result_grid, filename, temp_dir)
+        generated_files = crop_zero123_grid_dynamic(result_grid, filename, temp_dir)
+
+        # Remove grey Zero123++ backgrounds from synth views — anchor is untouched
+        for synth_name in generated_files:
+            synth_path = os.path.join(temp_dir, synth_name)
+            img_rgba = Image.open(synth_path).convert("RGBA")
+            subject = rembg_remove(img_rgba)
+            canvas = Image.new("RGBA", subject.size, (0, 0, 0, 255))
+            canvas.paste(subject, (0, 0), subject)
+            canvas.convert("RGB").save(synth_path)
 
     del pipeline
     flush_memory()
@@ -280,6 +290,7 @@ def main(args):
     # --- CANDIDATE SELECTION LOGIC ---
     manifest_path = os.path.join(args.input_dir, "manifest.json")
     candidates = []
+    good_candidates = []
 
     if os.path.exists(manifest_path):
         with open(manifest_path, 'r') as f:
@@ -293,8 +304,10 @@ def main(args):
         elif args.mode == "restoration":
             target_decisions = ["REPAIR", "BAD", "DISCARD", "blur"]
             candidates = [e for e in manifest if e.get("decision") in target_decisions]
+            good_candidates = [e for e in manifest if e.get("decision") not in target_decisions]
             if not candidates:
                 candidates = manifest
+                good_candidates = []
 
     else:
         # 🟢 ARCHITECTURE PATCH: Included "input" in the fallback search paths
@@ -308,6 +321,27 @@ def main(args):
         candidates = [{"filename": f} for f in raw_files]
 
     print(f"✅ Selected {len(candidates)} candidates.")
+
+    # --- PASS-THROUGH GOOD IMAGES (Restoration mode only) ---
+    # Images whose decision is not REPAIR/BAD/DISCARD/blur are already fine.
+    # Copy them straight into temp_dir as anchor_ files so the upscaler picks them up.
+    if good_candidates:
+        print(f"✅ Passing through {len(good_candidates)} good images as anchors...")
+        for entry in good_candidates:
+            filename = entry["filename"]
+            raw_fallback = args.input_dir.replace("output_processed", "output_train")
+            possible_paths = [
+                os.path.join(args.input_dir, "processed_train", filename),
+                os.path.join(raw_fallback, "train", filename),
+                os.path.join(args.input_dir, "images", filename),
+                os.path.join(args.input_dir, "input", filename),
+                os.path.join(args.input_dir, filename)
+            ]
+            img_path = next((p for p in possible_paths if os.path.exists(p)), None)
+            if not img_path:
+                continue
+            stem = os.path.splitext(filename)[0]
+            shutil.copy2(img_path, os.path.join(temp_dir, f"anchor_{stem}.png"))
 
     # --- EXECUTION ---
     if len(candidates) > 0:
