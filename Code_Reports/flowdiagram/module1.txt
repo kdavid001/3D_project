@@ -1,0 +1,39 @@
+graph TD
+    %% Define Inputs
+    Input[(Original Clean Dataset)] --> GenScript[Generation Script\ncorrupt_dataset_v3.py]
+
+    %% Generation Stage
+    GenScript --> ProbCheck{"Apply Corruption?"}
+
+    ProbCheck -->|No| Mixed[Mixed Dataset\noutput_data]
+    ProbCheck -->|Yes| CorruptType{"Failure Mode"}
+
+    CorruptType -->|Saturation Boost| Sat[Deep Fried\nS-channel x2.0 to x4.0]
+    CorruptType -->|Exposure Failure| Exp[Flash / Crushed\nMultiplier >2.5 or <0.3]
+    CorruptType -->|Optical Defocus| Blur[Lens Blur\nGaussian Kernel 7x7 to 21x21]
+    CorruptType -->|ISO Noise| Noise[Sensor Grain\nGaussian Noise]
+    CorruptType -->|Sector Deletion| Del[Missing Views\nSparse Data]
+
+    Sat --> Mixed
+    Exp --> Mixed
+    Blur --> Mixed
+    Noise --> Mixed
+    Del --> Mixed
+
+    %% Detection Stage
+    Mixed --> DetectScript[Screening Script]
+
+    DetectScript --> Analyze{"Analyze Image Metrics"}
+
+    Analyze -->|"Neon Clip > 5-10%"| RejectSat[Reject: Oversaturated]
+    Analyze -->|"Histogram at 0 or 255"| RejectExp[Reject: Exposure Loss]
+    Analyze -->|"MUSIQ Score < 40"| RejectBlur[Reject: Blurry / Noisy]
+
+    Analyze -->|Passes all checks| Output[(Processed Clean Data\nprocessed_train)]
+
+    %% Side Outputs
+    DetectScript -.->|"--debug flag"| Visuals[Debug Visuals\nHeatmaps & Histograms]
+
+    %% Force Black and White Styling
+    classDef default fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000;
+    linkStyle default stroke:#000000,stroke-width:2px;

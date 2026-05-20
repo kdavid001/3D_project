@@ -1,6 +1,6 @@
 # AI-Powered COLMAP Pipeline — `convert_ai.py`
 
-> **STATUS: ❌ NOT IN USE** — Replaced by `inject_poses.py`. Still present in Full_pipeline_v1.ipynb Cell 9 but should be swapped out. Kept in codebase as a reference implementation.
+> **STATUS: ✅ IN USE** — Single pose estimator for all pipeline modes (synthesis, restoration, natural). inject_poses.py was discarded. convert_ai.py (SuperPoint + LightGlue exhaustive matching via hloc) is used across all three modes.
 
 ---
 

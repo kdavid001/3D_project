@@ -72,9 +72,9 @@ temp_dir  →  RealESRGAN ×4  →  resize 1024×1024  →  final_{name}_run/
 
 | Prefix | Source | Downstream |
 |---|---|---|
-| `anchor_` | Real photo (black BG, centred) | inject_poses.py recognises as real camera |
-| `synth_*_v[0-5].png` | Zero123++ tiles, rembg applied | inject_poses.py recognises as synthetic view |
-| `restored_` | ControlNet output | Treated as anchor by inject_poses.py |
+| `anchor_` | Real photo (black BG, centred) | convert_ai.py — treated as real camera image |
+| `synth_*_v[0-5].png` | Zero123++ tiles, rembg applied | convert_ai.py — treated as synthetic view |
+| `restored_` | ControlNet output | convert_ai.py — treated as real camera image |
 | `FULL_GRID_` | Raw Zero123++ grid | Skipped by upscaler, debug only |
 
 ---
@@ -83,9 +83,9 @@ temp_dir  →  RealESRGAN ×4  →  resize 1024×1024  →  final_{name}_run/
 
 | Bug | Fix |
 |---|---|
-| Good images saved as `good_{filename}` — invisible to pipeline | Now saved as `anchor_{stem}.png` — picked up by upscaler and inject_poses |
+| Good images saved as `good_{filename}` — invisible to pipeline | Now saved as `anchor_{stem}.png` — picked up by upscaler and convert_ai.py |
 | Zero123++ grey backgrounds caused silhouette mask to be all-1s | rembg integrated directly into synthesis loop, runs on synth tiles only |
-| `restored_` prefix not recognised by inject_poses.py | Documented limitation — inject_poses handles by treating unrecognised prefix as real image |
+| `restored_` prefix not recognised as distinct type | convert_ai.py treats all non-synth prefixes as real camera images — no action needed |
 
 ---
 

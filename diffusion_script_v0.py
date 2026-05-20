@@ -184,7 +184,7 @@ def run_restoration_phase(input_dir, temp_dir, candidates, prompt):
         filename = entry["filename"]
         raw_fallback = input_dir.replace("output_processed", "output_train")
 
-        # 🟢 ARCHITECTURE PATCH: Robust path hunting
+
         possible_paths = [
             os.path.join(input_dir, "processed_train", filename),
             os.path.join(raw_fallback, "train", filename),
@@ -225,6 +225,7 @@ def run_restoration_phase(input_dir, temp_dir, candidates, prompt):
         clean_image.save(os.path.join(temp_dir, save_name))
         success_count += 1
 
+    # To prevent OOM Error
     del pipe
     del controlnet
     flush_memory()

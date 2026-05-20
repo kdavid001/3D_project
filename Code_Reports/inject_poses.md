@@ -1,6 +1,6 @@
 # Analytic Pose Injector — `inject_poses.py`
 
-> **STATUS: ✅ IN USE** — Replaces `convert_ai.py` in the pipeline. Should be used in Full_pipeline_v1.ipynb Cell 9 (currently still on convert_ai.py — needs updating).
+> **STATUS: ❌ DISCARDED** — Removed from pipeline. `convert_ai.py` (SuperPoint + LightGlue SfM) is used for all modes instead. inject_poses.py was found to not produce the desired results and is no longer in use.
 
 ---
 

@@ -1,0 +1,41 @@
+graph TD
+    %% Input Stage
+    Input["Input Image Data\n(From Corrupted Dataset)"] --> Mode{"Check Dataset Mode"}
+
+    Mode -->|"Applies Specific Thresholds based on dataset type"| P1["Pillar 1: Optical Quality\n(MUSIQ Score: Blur & Noise)"]
+
+    %% The 5-Pillar Gauntlet
+    P1 --> P2["Pillar 2: Radiometric Saturation\n(HSV S-Channel: Neon/Clipping)"]
+    P2 --> P3["Pillar 3: Exposure Integrity\n(HSV V-Channel: Bright/Dark limits)"]
+    P3 --> P4["Pillar 4: Contrast\n(V-Channel Variance: Flatness)"]
+    P4 --> P5["Pillar 5: Color Cast\n(LAB Colorspace: Tint/Distance)"]
+
+    %% Decision Engine
+    P5 --> Decision{"Evaluation Result"}
+
+    %% Failure Route
+    Decision --> |"FAIL (Failed >= 1 Pillar)"| TagRepair["Tag: [REPAIR]"]
+
+
+
+    %% Pass Route & Split
+    Decision -->|"PASS (Passed ALL 5 Pillars)"| TagNovel["Tag: [NOVEL_VIEW]"]
+
+    TagNovel --> Output_Directory
+    TagRepair --> Output_Directory
+
+    Output_Directory --> SceneType{"Scene Type"}
+
+    %% Side-by-Side Synthesis Blocks
+    SceneType -->|"--mode synthetic"| SynthBlock["Generative Synthesis Module\n(Zero-123++)\nObject-Centric View Generation"]
+    SceneType -->|"--mode natural"| NatBlock["Video Synthesis Module\n(ViewCrafter)\nNatural Scene View Generation"]
+    SceneType --> |"--mode restoration"| ControlNet["Image Restoration Module\n(ControlNet Inpainting)\nFixes Artifacts"]
+
+    %% Convergence (Optional, can be removed if you want them to just end)
+    ControlNet --> Output["Proceed to 3DGS Training"]
+    SynthBlock --> Output
+    NatBlock -.->|"Preliminary Eval"| Output
+
+    %% Force Black and White Styling
+    classDef default fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000;
+    linkStyle default stroke:#000000,stroke-width:2px;
