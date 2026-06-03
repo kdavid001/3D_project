@@ -1,0 +1,58 @@
+graph TD
+    %% Phase 1
+    subgraph Data ["1. Data Acquisition"]
+        Input[("INPUT\nSparse Original Photos\n(Recommended: 6-12 images)")]
+    end
+
+    %% Phase 2
+    subgraph GenPhase ["2. Generative Interpolation"]
+        VC["ViewCrafter Engine\nTakes sparse image set as keyframes\nGenerates clips between pairs (N images → N-1 clips)"]
+        Render[("Output File\nrender.mp4")]
+
+        Input --> VC --> Render
+    end
+
+    %% Phase 3
+    subgraph ExtractPhase ["3. Temporal Processing"]
+        FFMPEG{{"Frame Extraction (ffmpeg)\nSamples every 4th frame\nRemoves temporal redundancy"}}
+        MathNote>"Example Extraction Math:\n12 images at 8fps run\n121 raw frames → 31 extracted"]
+
+        Render --> FFMPEG
+        FFMPEG -.->|"Calculates"| MathNote
+    end
+
+    %% Phase 4
+    subgraph MergePhase ["4. Data Consolidation"]
+        Merge[/"Dataset Merge\n(Total images into COLMAP = Original + Extracted)\ninput_dataset/{scene}/input/"/]
+
+        Input -.->|"Original Photos"| Merge
+        FFMPEG -->|"Extracted PNGs"| Merge
+    end
+
+    %% Phase 5
+    subgraph TrainPhase ["5. Geometry & 3DGS"]
+        Pose["Pose Estimation (convert_ai.py)\nSfM on full merged image set"]
+        Bins[("Output Poses\ncameras.bin, images.bin, points3D.bin")]
+        GS["3DGS Training (train.py)\n30,000 iterations\n--opacity_reset_interval 9000"]
+
+        Merge --> Pose --> Bins --> GS
+    end
+
+    %% Phase 6
+    subgraph EvalPhase ["6. Final Assessment"]
+        Eval{{"Evaluation Metrics\nPSNR / SSIM / LPIPS\n(On held-out test views)"}}
+
+        GS --> Eval
+    end
+
+    %% Force Black and White Styling for Nodes and Links
+    classDef default fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000;
+    linkStyle default stroke:#000000,stroke-width:2px;
+
+    %% Explicitly Force Subgraphs (Bounding Boxes) to be Black and White
+    style Data fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000,stroke-dasharray: 5 5
+    style GenPhase fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000,stroke-dasharray: 5 5
+    style ExtractPhase fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000,stroke-dasharray: 5 5
+    style MergePhase fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000,stroke-dasharray: 5 5
+    style TrainPhase fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000,stroke-dasharray: 5 5
+    style EvalPhase fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000,stroke-dasharray: 5 5

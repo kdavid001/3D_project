@@ -115,7 +115,8 @@ def run_synthesis_phase(input_dir, temp_dir, candidates):
     pipeline = DiffusionPipeline.from_pretrained(
         "sudo-ai/zero123plus-v1.2",
         custom_pipeline="sudo-ai/zero123plus-pipeline",
-        torch_dtype=torch.float16
+        torch_dtype=torch.float16,
+        trust_remote_code=True
     ).to("cuda")
 
     for entry in tqdm(candidates, desc="Generating Swarm"):
