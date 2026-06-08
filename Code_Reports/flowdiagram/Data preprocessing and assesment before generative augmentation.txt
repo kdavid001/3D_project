@@ -1,0 +1,51 @@
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeColor': '#000000', 'lineColor': '#000000', 'nodeBorder': '#000000', 'tertiaryColor': '#ffffff'}}}%%
+graph TD
+    %% Styling to ensure clean spacing and sizing
+    classDef default padding:18px 25px,font-size:14px;
+
+    %% Nodes Definitions
+    N1["Input Image Data<br>(From Corrupted Dataset)"]
+
+    D1{"Check Dataset Mode"}
+
+    N2["<b>The 5-Pillar Gauntlet</b><br>1. Optical Quality (MUSIQ)<br>2. Radiometric Saturation (HSV S)<br>3. Exposure Integrity (HSV V)<br>4. Contrast (V-Channel Variance)<br>5. Color Cast (LAB Colorspace)"]
+
+    D2{"Evaluation Result"}
+
+    N3_Pass["Tag: [NOVEL_VIEW]"]
+    N3_Fail["Tag: [REPAIR]"]
+
+    N4["Output Directory"]
+
+    D3{"Scene Type / Mode"}
+
+    M_Rest["Image Restoration Module<br>(ControlNet Inpainting)<br>Fixes Artifacts"]
+
+    M_Synth["Generative Synthesis Module<br>(Zero-123++)<br>Object-Centric View Generation"]
+
+    M_Nat["Video Synthesis Module<br>(ViewCrafter)<br>Natural Scene View Generation"]
+
+    N5["Proceed to 3DGS Training"]
+
+    %% Flow/Connections
+    N1 --> |"Data Preprocessing<br>(Image Format Standardization)"| D1
+
+    D1 --> |"Applies Specific Thresholds<br>based on dataset type"| N2
+
+    N2 --> D2
+
+    D2 --> |"PASS (Passed ALL 5 Pillars)"| N3_Pass
+    D2 --> |"FAIL (Failed >= 1 Pillar)"| N3_Fail
+
+    N3_Pass --> N4
+    N3_Fail --> N4
+
+    N4 --> D3
+
+    D3 --> |"--mode restoration"| M_Rest
+    D3 --> |"--mode synthetic"| M_Synth
+    D3 --> |"--mode natural"| M_Nat
+
+    M_Rest --> N5
+    M_Synth --> N5
+    M_Nat -.-> |"Preliminary Eval"| N5

@@ -25,10 +25,12 @@ THRESHOLDS = {
     "natural": {
         "USE_CROP": False,
         "BAD_LIMIT": 40.0,
+        "HARD_LIMIT": 20.0,    # below this, always fail regardless of other pillars
         "SAT_CLIPPED": 0.05,
         "SAT_MAX_AVG": 180.0,
-        "EXP_MIN_AVG": 45.0,  # As requested
-        "EXP_MAX_AVG": 250.0,
+        "EXP_MIN_AVG": 45.0,
+        "EXP_MAX_AVG": 200.0,      # avg V > 200 (~78% brightness) = overexposed
+        "EXP_CLIPPED": 0.27,       # >27% pixels blown (V >= 250) = overexposed
         "CONTRAST_MIN": 10.0,
         "CAST_LIMIT": 60.0
     },
@@ -36,12 +38,14 @@ THRESHOLDS = {
         "USE_CROP": True,
         # 1. QUALITY (MUSIQ)
         "BAD_LIMIT": 65.0,
+        "HARD_LIMIT": 30.0,    # below this, always fail regardless of other pillars
         # 2. SATURATION (Neon Check)
         "SAT_MAX_AVG": 160.0,
         "SAT_CLIPPED": 0.02,
         # 3. EXPOSURE (Light Check)
         "EXP_MIN_AVG": 45.0,
-        "EXP_MAX_AVG": 230.0,
+        "EXP_MAX_AVG": 200.0,      # same ceiling as natural
+        "EXP_CLIPPED": 0.08,       # stricter: >8% blown pixels = overexposed
         # 4. CONTRAST (Flatness Check)
         "CONTRAST_MIN": 25.0,
         # 5. COLOR CAST (Tint Check)
@@ -127,7 +131,10 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
     # Exposure
     v = hsv[:, :, 2]
     avg_val = np.mean(v[mask])
-    is_exp_fail = avg_val > settings['EXP_MAX_AVG'] or avg_val < settings['EXP_MIN_AVG']
+    highlight_ratio = np.sum((v >= 250) & mask) / valid_pixels
+    is_exp_fail = (avg_val > settings['EXP_MAX_AVG'] or
+                   avg_val < settings['EXP_MIN_AVG'] or
+                   highlight_ratio > settings['EXP_CLIPPED'])
     exp_reason = "Bad Light" if is_exp_fail else "Light OK"
 
     # Contrast
@@ -145,13 +152,19 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
     cast_reason = f"Tinted ({cast_score:.1f})" if is_cast_fail else "Neutral"
 
     # --- 4. FINAL DECISION ---
-    is_fail = is_sat_fail or is_exp_fail or is_qual_fail or is_cont_fail or is_cast_fail
+    # MUSIQ soft/hard logic:
+    #   score < HARD_LIMIT          → always fail (genuinely unusable)
+    #   HARD_LIMIT <= score < BAD_LIMIT AND another pillar fails → fail (borderline + corroborated)
+    #   HARD_LIMIT <= score < BAD_LIMIT AND all other pillars pass → pass (domain calibration issue)
+    other_fails = is_sat_fail or is_exp_fail or is_cont_fail or is_cast_fail
+    is_qual_effective_fail = (score < settings['HARD_LIMIT']) or (is_qual_fail and other_fails)
+    is_fail = other_fails or is_qual_effective_fail
 
     final_reason = "Pass"
     if is_fail:
         if is_cast_fail:
             final_reason = cast_reason
-        elif is_qual_fail:
+        elif is_qual_effective_fail:
             final_reason = qual_reason
         elif is_sat_fail:
             final_reason = sat_reason
@@ -206,7 +219,8 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
         metrics = [
             ("Quality", score, settings['BAD_LIMIT'], ">"),
             ("Saturation", clipped_ratio * 100, settings['SAT_CLIPPED'] * 100, "<"),
-            ("Brightness", avg_val, settings['EXP_MIN_AVG'], ">"),
+            ("Brightness", avg_val, settings['EXP_MAX_AVG'], "<"),
+            ("Highlights", highlight_ratio * 100, settings['EXP_CLIPPED'] * 100, "<"),
             ("Contrast", contrast_val, settings['CONTRAST_MIN'], ">"),
             ("Color Tint", cast_score, settings['CAST_LIMIT'], "<")
         ]
@@ -216,7 +230,7 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
             icon = "✅" if pass_metric else "❌"
             text_color = "black" if pass_metric else "red"
             ax3.text(0.1, y_pos, f"{icon} {name}", fontsize=12, fontweight='bold')
-            ax3.text(0.6, y_pos, f"{val:.1f}  (Limit {thresh:.1f})", fontsize=12, color=text_color)
+            ax3.text(0.6, y_pos, f"{val:.1f}  (Limit {op} {thresh:.1f})", fontsize=12, color=text_color)
             y_pos -= 0.15
 
         save_path = os.path.join(debug_dir, fname)

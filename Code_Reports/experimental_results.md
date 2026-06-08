@@ -1,6 +1,6 @@
 # Experimental Results Log
 # Project: Generative Augmented 3D Reconstruction Pipeline
-# Last updated: 2026-05-29
+# Last updated: 2026-06-07
 
 ---
 
@@ -21,10 +21,14 @@
 
 | Scene | Type | Condition | Cameras | COLMAP Points | Init Points | PSNR ↑ (dB) | SSIM ↑ | LPIPS ↓ | Status |
 |---|---|---|---|---|---|---|---|---|---|
+| train | Real-world | Baseline A — Full + SIFT | 301 | 95,909 | 95,909 | 21.99 | 0.8069 | 0.2084 | Complete |
 | train | Real-world | Baseline B — Sparse + SIFT | 0 | 0 | 0 | N/A | N/A | N/A | FAILED |
 | train | Real-world | Ablation — Sparse + AI (no aug) | 12 | 1,562 | 1,562 | 9.60 | 0.2674 | 0.5628 | Complete |
 | train | Real-world | Proposed — Sparse + ViewCrafter + AI | 60 | 17,134 | 1,835 | **15.96** | **0.5456** | **0.3809** | Complete |
-| train | Real-world | Baseline A — Full + SIFT | 301 | 95,909 | 95,909 | 21.99 | 0.8069 | 0.2084 | Complete |
+| classroom | Real-world | Baseline A — Full + SIFT | — | — | — | — | — | — | Pending |
+| classroom | Real-world | Baseline B — Sparse + SIFT | 0 | 0 | 0 | N/A | N/A | N/A | FAILED |
+| classroom | Real-world | Ablation — Sparse + AI (no aug) | 12 | 1,150 | — | — | — | — | Training Pending |
+| classroom | Real-world | Proposed — Sparse + ViewCrafter + AI | — | — | — | — | — | — | Pending |
 
 ---
 
@@ -125,6 +129,52 @@ metrics.py (38 test views):
     LPIPS: 0.2084
 ```
 
-**Notes:** Healthy training — train/test gap only 4.8 dB at iter 30000, indicating good generalisation with 301 cameras. Upper-bound reference for this scene. The Proposed pipeline (12 sparse images + ViewCrafter) recovers ~62% of the quality gap between the Ablation (9.60 dB) and this upper bound (21.99 dB).
+**Notes:** Healthy training — train/test gap only 4.8 dB at iter 30000, indicating good generalisation with 301 cameras. Upper-bound reference for this scene. The Proposed pipeline (12 sparse images + ViewCrafter) recovers ~51.3% of the quality gap between the Ablation (9.60 dB) and this upper bound (21.99 dB). Calculation: (15.96 − 9.60) / (21.99 − 9.60) × 100 = 51.3%.
+
+---
+
+### Scene: classroom | Condition: Baseline B — Sparse + SIFT | FAILED
+
+**Date:** 2026-06-07
+**Dataset:** `baseline_classroom_d_s` — 12 sparse images (converted from HEIC, no augmentation)
+**Pose estimation:** `convert.py` (standard COLMAP SIFT exhaustive)
+**Images:** 12 real-world indoor classroom photographs (iPhone, HEIC → JPEG)
+
+```
+Bundle adjustment:
+    Residuals : 204  |  Parameters : 164  |  Iterations : 101
+    Initial cost : 2.8255 px  |  Final cost : 0.325353 px
+    Termination : No convergence
+  => Filtered observations: 0
+  => Filtered images: 0
+  => No good initial image pair found.
+Elapsed time: 0.772 [minutes]
+ERROR: failed to create sparse model
+ERROR: Mapper failed with code 256
+```
+
+**Outcome:** Complete reconstruction failure — identical pattern to train Baseline B. SIFT cannot establish sufficient matches across 12 sparse indoor images. Confirms that the sparse SIFT failure is not scene-specific but a systematic limitation of feature-based matching under sparse, wide-baseline capture conditions.
+
+---
+
+### Scene: classroom | Condition: Ablation — Sparse + AI (no augmentation) | SfM COMPLETE — Training Pending
+
+**Date:** 2026-06-07
+**Dataset:** `baseline_classroom_d_s` — 12 sparse images, no augmentation
+**Pose estimation:** `convert_ai.py` (SuperPoint + LightGlue exhaustive)
+
+```
+SfM (convert_ai.py):
+    Reconstruction: 12/12 cameras registered | 1,150 COLMAP points
+    num_observations         : 2,898
+    mean_track_length        : 2.52
+    mean_observations/image  : 241.5
+    mean_reprojection_error  : 1.183 px
+    Undistortion: 12/12 complete
+
+Init points: — (pending train.py)
+```
+
+**Notes:** All 12 cameras registered successfully — SuperPoint + LightGlue succeeds where SIFT failed completely. Point cloud (1,150 points) is lower than train ablation (1,562 points), consistent with the indoor scene having textureless surfaces (walls, ceiling, uniform floor) that yield fewer repeatable keypoints. Mean reprojection error of 1.183 px is acceptable. Training pending — expect severe overfitting with only 12 cameras and 2 held-out test views, mirroring the train ablation result.
 
 ---

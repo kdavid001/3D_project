@@ -1,0 +1,19 @@
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeColor': '#000000', 'lineColor': '#000000', 'nodeBorder': '#000000', 'tertiaryColor': '#ffffff'}}}%%
+graph TD
+    %% Styling to force larger nodes
+    classDef largeNode padding:25px 40px,font-size:16px;
+    class B1,B2,B3,B4 largeNode;
+
+    %% Nodes Declaration
+    B1["<b>Macro-Block 1:</b><br>Data Preprocessing &<br>Assessment (Chapter 3.4)"]
+
+    B2["<b>Macro-Block 2:</b><br>Generative<br>Augmentation Engine (Chapter 3.5)"]
+
+    B3["<b>Macro-Block 3:</b><br>Deep Feature<br>Mapping (SfM) (Chapter 3.6.1 -<br>3.6.2)"]
+
+    B4["<b>Macro-Block 4:</b><br>Volumetric<br>Rasterization (3DGS) (Section 3.7)"]
+
+    %% Vertical Connections and Text Links
+    B1 --> |"Raw/Degraded Data"| B2
+    B2 --> |"Restored/Synthesized<br>Swarm"| B3
+    B3 --> |"Sparse Point Cloud & Poses"| B4
