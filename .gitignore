@@ -1,3 +1,6 @@
+__pycache__/
+.idea
+
 nsenv
 Original Images
 others/output
@@ -29,7 +32,7 @@ Unused_ignored_files
 agents
 images_for
 .claude
-
+secret
 agent_folders
 
 algorithm_for_codes
