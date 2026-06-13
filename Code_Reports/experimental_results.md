@@ -27,7 +27,7 @@
 | train | Real-world | Proposed — Sparse + ViewCrafter + AI | 60 | 17,134 | 1,835 | **15.96** | **0.5456** | **0.3809** | Complete |
 | classroom | Real-world | Baseline A — Full + SIFT | — | — | — | — | — | — | Pending |
 | classroom | Real-world | Baseline B — Sparse + SIFT | 0 | 0 | 0 | N/A | N/A | N/A | FAILED |
-| classroom | Real-world | Ablation — Sparse + AI (no aug) | 12 | 1,150 | — | — | — | — | Training Pending |
+| classroom | Real-world | Ablation — Sparse + AI (no aug) | 12 | 1,150 | 1,150 | 11.72 | 0.3810 | 0.6180 | Complete |
 | classroom | Real-world | Proposed — Sparse + ViewCrafter + AI | — | — | — | — | — | — | Pending |
 
 ---
@@ -175,6 +175,20 @@ SfM (convert_ai.py):
 Init points: — (pending train.py)
 ```
 
-**Notes:** All 12 cameras registered successfully — SuperPoint + LightGlue succeeds where SIFT failed completely. Point cloud (1,150 points) is lower than train ablation (1,562 points), consistent with the indoor scene having textureless surfaces (walls, ceiling, uniform floor) that yield fewer repeatable keypoints. Mean reprojection error of 1.183 px is acceptable. Training pending — expect severe overfitting with only 12 cameras and 2 held-out test views, mirroring the train ablation result.
+**Notes:** All 12 cameras registered successfully — SuperPoint + LightGlue succeeds where SIFT failed completely. Point cloud (1,150 points) is lower than train ablation (1,562 points), consistent with the indoor scene having textureless surfaces (walls, ceiling, uniform floor) that yield fewer repeatable keypoints. Mean reprojection error of 1.183 px is acceptable.
+
+```
+Training (30,000 iterations):
+    Init points : 1,150
+    [7000]  Test PSNR: 12.085 dB  |  Train PSNR: 30.558 dB
+    [30000] Test PSNR: 11.730 dB  |  Train PSNR: 39.405 dB
+
+metrics.py (2 test views):
+    PSNR : 11.7219 dB
+    SSIM : 0.3810
+    LPIPS: 0.6180  (VGG network)
+```
+
+**Notes:** Severe overfitting confirmed — train/test gap of 27.7 dB at iter 30000, and test PSNR *degraded* from iter 7000 (12.085) to iter 30000 (11.730) as the model memorised training viewpoints. Mirrors the train ablation pattern (33.2 dB gap). Slightly better absolute PSNR than train ablation (11.72 vs 9.60) but worse LPIPS (0.618 vs 0.563), reflecting the classroom's textureless surfaces (walls, ceiling) which are perceptually harder to reconstruct. Establishes the lower bound for the classroom scene — ViewCrafter augmentation (Proposed) should improve significantly.
 
 ---

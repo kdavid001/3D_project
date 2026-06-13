@@ -1,51 +1,64 @@
 %%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeColor': '#000000', 'lineColor': '#000000', 'nodeBorder': '#000000', 'tertiaryColor': '#ffffff'}}}%%
 graph TD
-    %% Styling to ensure clean spacing and sizing
-    classDef default padding:18px 25px,font-size:14px;
 
-    %% Nodes Definitions
-    N1["Input Image Data<br>(From Corrupted Dataset)"]
+    RawInput[("Raw Input Images\nJPEG / PNG / HEIC")]
 
-    D1{"Check Dataset Mode"}
+    FormatStep["Format Standardisation\nHEIC → JPEG (sips on Mac / pillow-heif on Colab)\nEnsures library compatibility"]
 
-    N2["<b>The 5-Pillar Gauntlet</b><br>1. Optical Quality (MUSIQ)<br>2. Radiometric Saturation (HSV S)<br>3. Exposure Integrity (HSV V)<br>4. Contrast (V-Channel Variance)<br>5. Color Cast (LAB Colorspace)"]
+    Mode{"Screening Mode\n(sets pillar thresholds)"}
 
-    D2{"Evaluation Result"}
+    FormatStep --> Mode
 
-    N3_Pass["Tag: [NOVEL_VIEW]"]
-    N3_Fail["Tag: [REPAIR]"]
+    Mode -->|"--mode natural\nOutdoor real-world\nMUSIQ BAD > 40, HARD > 20\nCAST < 60, CONTRAST > 10"| Pillars
+    Mode -->|"--mode indoor\nArtificial lighting\nMUSIQ BAD > 30, HARD > 15\nCAST < 75, CONTRAST > 8"| Pillars
+    Mode -->|"--mode synthetic\nNeRF renders\nMUSIQ BAD > 65, HARD > 30\nCAST < 50, CONTRAST > 25"| Pillars
 
-    N4["Output Directory"]
+    Pillars["<b>The 5-Pillar Gauntlet</b><br>1. Optical Quality — MUSIQ (soft/hard two-level gate)<br>2. Radiometric Saturation — HSV S-Channel clipping<br>3. Exposure Integrity — HSV V-Channel avg + highlight ratio<br>4. Contrast — V-Channel standard deviation<br>5. Colour Cast — LAB A/B Euclidean distance from neutral"]
 
-    D3{"Scene Type / Mode"}
+    Decision{"Evaluation Result"}
 
-    M_Rest["Image Restoration Module<br>(ControlNet Inpainting)<br>Fixes Artifacts"]
+    TagNovel["Tag: NOVEL_VIEW\nPassed ALL 5 Pillars\nCopied to processed_train/"]
+    TagRepair["Tag: REPAIR\nFailed ≥ 1 Pillar"]
 
-    M_Synth["Generative Synthesis Module<br>(Zero-123++)<br>Object-Centric View Generation"]
+    Manifest[("manifest.json\nPer-image: filename, score,\ndecision, failure reason")]
 
-    M_Nat["Video Synthesis Module<br>(ViewCrafter)<br>Natural Scene View Generation"]
+    SceneType{"Scene Type"}
 
-    N5["Proceed to 3DGS Training"]
+    ModeA["Mode A: Zero-123++\nObject-centric novel view synthesis\n6 views per anchor (2×3 grid)\nBlack background required\nrembg background removal applied"]
 
-    %% Flow/Connections
-    N1 --> |"Data Preprocessing<br>(Image Format Standardization)"| D1
+    ModeB["Mode B: ControlNet Tile\nStructure-preserving restoration\nStrength 0.35, Steps 30\nBackground preserved"]
 
-    D1 --> |"Applies Specific Thresholds<br>based on dataset type"| N2
+    ModeC["Mode C: ViewCrafter\nVideo diffusion + DUSt3R conditioning\nReal-world scene interpolation\nBackground preserved for SfM"]
 
-    N2 --> D2
+    Upscale["RealESRGAN x4plus Upscaling\nAll outputs standardised to 1024×1024"]
 
-    D2 --> |"PASS (Passed ALL 5 Pillars)"| N3_Pass
-    D2 --> |"FAIL (Failed >= 1 Pillar)"| N3_Fail
+    SfM["Proceed to Feature Matching\nSuperPoint + LightGlue → COLMAP\n(convert_ai.py)"]
 
-    N3_Pass --> N4
-    N3_Fail --> N4
+    %% Flow
+    RawInput --> FormatStep
+    Pillars --> Decision
+    Decision -->|"PASS"| TagNovel
+    Decision -->|"FAIL"| TagRepair
 
-    N4 --> D3
+    TagNovel --> SceneType
+    TagRepair -->|"Any scene type"| ModeB
 
-    D3 --> |"--mode restoration"| M_Rest
-    D3 --> |"--mode synthetic"| M_Synth
-    D3 --> |"--mode natural"| M_Nat
+    SceneType -->|"synthetic"| ModeA
+    SceneType -->|"natural or indoor"| ModeC
 
-    M_Rest --> N5
-    M_Synth --> N5
-    M_Nat -.-> |"Preliminary Eval"| N5
+    ModeA --> Upscale
+    ModeB --> Upscale
+    ModeC --> Upscale
+
+
+    TagNovel & TagRepair -.-> Manifest
+    Upscale --> SfM
+
+    %% Debug path
+    Pillars -.->|"--debug flag"| Debug["Debug Visuals\n3-panel diagnostic chart\n(image + histogram + metrics)"]
+
+    %% Styling
+    classDef default fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000;
+    linkStyle default stroke:#000000,stroke-width:2px;
+    style Debug stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    style Manifest stroke:#333,stroke-width:2px,stroke-dasharray: 5 5

@@ -1,41 +1,54 @@
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeColor': '#000000', 'lineColor': '#000000', 'nodeBorder': '#000000', 'tertiaryColor': '#ffffff'}}}%%
 graph TD
-    %% Input Stage
-    Input["Input Image Data\n(From Corrupted Dataset)"] --> Mode{"Check Dataset Mode"}
 
-    Mode -->|"Applies Specific Thresholds based on dataset type"| P1["Pillar 1: Optical Quality\n(MUSIQ Score: Blur & Noise)"]
+    Input["Input Image Data\n(From Corrupted Dataset)"]
 
-    %% The 5-Pillar Gauntlet
-    P1 --> P2["Pillar 2: Radiometric Saturation\n(HSV S-Channel: Neon/Clipping)"]
-    P2 --> P3["Pillar 3: Exposure Integrity\n(HSV V-Channel: Bright/Dark limits)"]
-    P3 --> P4["Pillar 4: Contrast\n(V-Channel Variance: Flatness)"]
-    P4 --> P5["Pillar 5: Color Cast\n(LAB Colorspace: Tint/Distance)"]
+    Mode{"Check Screening Mode\n(sets pillar thresholds)"}
 
-    %% Decision Engine
-    P5 --> Decision{"Evaluation Result"}
+    Mode -->|"--mode natural\nOutdoor scenes\nMUSIQ BAD > 40, HARD > 20"| Pillars
+    Mode -->|"--mode indoor\nArtificial lighting\nMUSIQ BAD > 30, HARD > 15"| Pillars
+    Mode -->|"--mode synthetic\nNeRF renders\nMUSIQ BAD > 65, HARD > 30"| Pillars
 
-    %% Failure Route
-    Decision --> |"FAIL (Failed >= 1 Pillar)"| TagRepair["Tag: [REPAIR]"]
+    Pillars["The 5-Pillar Gauntlet\n1. Optical Quality — MUSIQ Score (soft/hard gate)\n2. Radiometric Saturation — HSV S-Channel\n3. Exposure Integrity — HSV V-Channel\n4. Contrast — V-Channel Std Dev\n5. Colour Cast — LAB A/B Distance"]
 
+    Decision{"Evaluation Result"}
 
+    TagRepair["Tag: REPAIR\nFailed ≥ 1 Pillar"]
+    TagNovel["Tag: NOVEL_VIEW\nPassed ALL 5 Pillars"]
 
-    %% Pass Route & Split
-    Decision -->|"PASS (Passed ALL 5 Pillars)"| TagNovel["Tag: [NOVEL_VIEW]"]
+    SceneType{"Scene Type\n(from --mode flag)"}
 
-    TagNovel --> Output_Directory
-    TagRepair --> Output_Directory
+    ControlNet["Mode B: Image Restoration\nControlNet Tile\nFixes radiometric artifacts\nPreserves scene geometry"]
 
-    Output_Directory --> SceneType{"Scene Type"}
+    Zero123["Mode A: Novel View Synthesis\nZero-123++\nObject-centric hemisphere coverage\n6 views per anchor image"]
 
-    %% Side-by-Side Synthesis Blocks
-    SceneType -->|"--mode synthetic"| SynthBlock["Generative Synthesis Module\n(Zero-123++)\nObject-Centric View Generation"]
-    SceneType -->|"--mode natural"| NatBlock["Video Synthesis Module\n(ViewCrafter)\nNatural Scene View Generation"]
-    SceneType --> |"--mode restoration"| ControlNet["Image Restoration Module\n(ControlNet Inpainting)\nFixes Artifacts"]
+    ViewCrafter["Mode C: Video Interpolation\nViewCrafter + DUSt3R\nReal-world scene coverage\nTemporally coherent novel views"]
 
-    %% Convergence (Optional, can be removed if you want them to just end)
-    ControlNet --> Output["Proceed to 3DGS Training"]
-    SynthBlock --> Output
-    NatBlock -.->|"Preliminary Eval"| Output
+    Output["Proceed to Feature Matching\n(SuperPoint + LightGlue → COLMAP)"]
 
-    %% Force Black and White Styling
+    %% Flow
+    Input --> Mode
+    Pillars --> Decision
+    Decision -->|"FAIL"| TagRepair
+    Decision -->|"PASS"| TagNovel
+
+    TagRepair -->|"Any scene type"| ControlNet
+    TagNovel --> SceneType
+    SceneType -->|"synthetic"| Zero123
+    SceneType -->|"natural or indoor"| ViewCrafter
+
+    ControlNet --> Output
+    Zero123 --> Output
+    ViewCrafter --> Output
+
+    %% Debug side output
+    Pillars -.->|"--debug flag"| Debug["Debug Visuals\n3-panel diagnostic chart per image"]
+
+    %% Manifest output
+    Decision -.->|"All images"| Manifest["manifest.json\nPer-image score, tag, and reason"]
+
+    %% Styling
     classDef default fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000;
     linkStyle default stroke:#000000,stroke-width:2px;
+    style Debug stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    style Manifest stroke:#333,stroke-width:2px,stroke-dasharray: 5 5

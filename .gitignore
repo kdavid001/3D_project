@@ -29,6 +29,11 @@ Unused_ignored_files
 agents
 images_for
 .claude
-agents
+
 agent_folders
-images_for
+
+algorithm_for_codes
+algorithm_summaries
+Code_Reports
+colmap_images
+

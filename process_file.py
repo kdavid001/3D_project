@@ -34,6 +34,23 @@ THRESHOLDS = {
         "CONTRAST_MIN": 10.0,
         "CAST_LIMIT": 60.0
     },
+    "indoor": {
+        "USE_CROP": False,
+        # 1. QUALITY (MUSIQ) — lower limits: artificial lighting depresses MUSIQ scores
+        "BAD_LIMIT": 30.0,
+        "HARD_LIMIT": 15.0,    # below this, always fail regardless of other pillars
+        # 2. SATURATION (Neon Check)
+        "SAT_MAX_AVG": 180.0,
+        "SAT_CLIPPED": 0.05,
+        # 3. EXPOSURE (Light Check) — dimmer floors/walls common indoors
+        "EXP_MIN_AVG": 35.0,
+        "EXP_MAX_AVG": 210.0,
+        "EXP_CLIPPED": 0.20,
+        # 4. CONTRAST (Flatness Check) — textureless walls/ceilings lower contrast
+        "CONTRAST_MIN": 8.0,
+        # 5. COLOR CAST (Tint Check) — artificial lighting causes stronger casts
+        "CAST_LIMIT": 75.0
+    },
     "synthetic": {
         "USE_CROP": True,
         # 1. QUALITY (MUSIQ)
@@ -305,7 +322,7 @@ def process_batch(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["natural", "synthetic"], default="synthetic")
+    parser.add_argument("--mode", choices=["natural", "indoor", "synthetic"], default="synthetic")
     parser.add_argument("--input_dir", type=str)
     parser.add_argument("--test_image", type=str)
     parser.add_argument("--out_dir", type=str, default="./output")

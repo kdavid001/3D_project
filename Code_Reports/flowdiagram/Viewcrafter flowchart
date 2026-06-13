@@ -33,7 +33,7 @@ graph TD
     subgraph TrainPhase ["5. Geometry & 3DGS"]
         Pose["Pose Estimation (convert_ai.py)\nSfM on full merged image set"]
         Bins[("Output Poses\ncameras.bin, images.bin, points3D.bin")]
-        GS["3DGS Training (train.py)\n30,000 iterations\n--opacity_reset_interval 9000"]
+        GS["3DGS Training (train.py)\n30,000 iterations\n"]
 
         Merge --> Pose --> Bins --> GS
     end
