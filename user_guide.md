@@ -235,17 +235,17 @@ The `--images` argument specifies the subfolder within `source_path` that contai
 
 ## 7. Full Pipeline — `Pipeline_files/unified_pipeline.ipynb`
 
-The main end-to-end pipeline runs on Google Colab (GPU runtime). It supports three modes:
+The main end-to-end pipeline runs on Google Colab (GPU runtime). Full notebook documentation is in [`Pipeline_files/README.md`](Pipeline_files/README.md). It supports three modes:
 
 | Mode | Description |
 |---|---|
-| A — Zero123++ | Object-centric synthetic scenes; black background required |
-| B — ViewCrafter | Real-world scenes; video diffusion from sparse views via DUSt3R point cloud |
-| C — ControlNet | Natural images flagged for restoration |
+| A — Zero123++ | Object-centric synthetic scenes; black background required; generates 6 novel views per anchor |
+| B — ControlNet Tile | Natural images flagged for restoration; structure-preserving repair (strength 0.35) |
+| C — ViewCrafter | Real-world scenes; video diffusion from sparse views via DUSt3R point cloud conditioning |
 
-Open the notebook in Colab, select a GPU runtime (A100 recommended for Mode B), and follow the cell-by-cell instructions. Key parameters are set in the configuration cell at the top.
+Open the notebook in Colab, select a GPU runtime (A100 recommended for Mode C), and follow the cell-by-cell instructions. Key parameters are set in the configuration cell at the top.
 
-### ViewCrafter-specific notes (Mode B)
+### ViewCrafter-specific notes (Mode C)
 
 - Install `pyav` in the notebook before running: `!pip install av`
 - Rename input images to numeric filenames (`000.jpg`, `001.jpg`, …) — ViewCrafter sorts by `int(stem)` and will silently mis-order non-numeric names
