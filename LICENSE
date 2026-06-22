@@ -1,0 +1,113 @@
+Copyright (c) 2026 David Ogunmola (kdavid001)
+All rights reserved.
+
+This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International License (CC BY-NC-SA 4.0).
+
+You are free to:
+  - Share  — copy and redistribute the material in any medium or format
+  - Adapt  — remix, transform, and build upon the material
+
+Under the following terms:
+  - Attribution      — You must give appropriate credit to the original author (David Ogunmola),
+                       provide a link to this repository and the licence, and indicate if changes
+                       were made. You may do so in any reasonable manner, but not in any way that
+                       suggests the author endorses you or your use.
+  - NonCommercial    — You may not use the material for commercial purposes.
+  - ShareAlike       — If you remix, transform, or build upon the material, you must distribute
+                       your contributions under the same licence as the original.
+
+No additional restrictions — You may not apply legal terms or technological measures that legally
+restrict others from doing anything the licence permits.
+
+To view the full licence text, visit:
+https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+-------------------------------------------------------------------------------
+
+THIRD-PARTY COMPONENTS
+
+This project builds on the following third-party works, each subject to their own licence terms.
+Users of this repository must comply with all upstream licences in addition to the terms above.
+
+  3D Gaussian Splatting
+    Authors : Kerbl et al. (2023), Inria & Max Planck Institut Informatik
+    Licence : Custom non-commercial research licence
+    Source  : https://github.com/graphdeco-inria/gaussian-splatting
+    Note    : Commercial use of the 3DGS training and rendering code is not permitted
+              under the upstream licence.
+
+  DUSt3R
+    Authors : Wang et al. (2024), NAVER LABS Europe
+    Licence : Creative Commons Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0)
+    Source  : https://github.com/naver/dust3r
+
+  ViewCrafter
+    Authors : Yu et al. (2024)
+    Licence : MIT License
+    Source  : https://github.com/Drexubery/ViewCrafter
+
+  Zero123++
+    Authors : Shi et al. (2023)
+    Licence : Apache License 2.0
+    Source  : https://github.com/sudo-ai-3d/zero123plus
+
+  LightGlue
+    Authors : Lindenberger et al. (2023), Computer Vision and Geometry Group, ETH Zurich
+    Licence : Apache License 2.0
+    Source  : https://github.com/cvg/LightGlue
+
+  SuperPoint
+    Authors : DeTone et al. (2018), Magic Leap
+    Licence : Non-commercial research licence (Magic Leap)
+    Source  : https://github.com/magicleap/SuperGluePretrainedNetwork
+    Note    : Use of SuperPoint weights is restricted to non-commercial research and
+              educational purposes only under the Magic Leap licence.
+
+  Real-ESRGAN
+    Authors : Wang et al. (2021)
+    Licence : BSD 3-Clause License
+    Source  : https://github.com/xinntao/Real-ESRGAN
+
+  Hierarchical Localization (hloc)
+    Authors : Sarlin et al., Computer Vision and Geometry Group, ETH Zurich
+    Licence : Apache License 2.0
+    Source  : https://github.com/cvg/Hierarchical-Localization
+
+  MUSIQ (via pyiqa)
+    Authors : Ke et al. (2021), Google Research
+    Licence : Apache License 2.0
+    Source  : https://github.com/chaofengc/IQA-PyTorch
+
+-------------------------------------------------------------------------------
+
+CITATION
+
+If you use this work in research or academic publications, please cite:
+
+  Ogunmola, D. (2026). Design and Implementation of a Multi-view Generative Augmented
+  3D Reconstruction Pipeline Using 3D Gaussian Splatting and Diffusion-Based View Synthesis.
+  B.Eng Final Year Project, Covenant University.
+  Repository: https://github.com/kdavid001/3D_project
+
+BibTeX:
+  @misc{ogunmola2026generative3dgs,
+    author  = {Ogunmola, David},
+    title   = {Design and Implementation of a Multi-view Generative Augmented
+               3D Reconstruction Pipeline},
+    year    = {2026},
+    school  = {Covenant University},
+    note    = {B.Eng Final Year Project},
+    url     = {https://github.com/kdavid001/3D_project}
+  }
+
+Please also cite the upstream works listed above when using this pipeline.
+
+-------------------------------------------------------------------------------
+
+DISCLAIMER
+
+This software is provided "as is", without warranty of any kind, express or implied,
+including but not limited to the warranties of merchantability, fitness for a particular
+purpose, and non-infringement. In no event shall the author be liable for any claim,
+damages, or other liability arising from the use of this software.
