@@ -15,11 +15,11 @@ The pipeline operates in three stages:
 ### Key Result
 The proposed pipeline recovers **51.3% of the quality gap** between a sparse no-augmentation baseline (PSNR 9.60 dB) and the full 301-image upper bound (PSNR 21.99 dB), using only **12 sparse input images** — a **96% reduction** in acquisition effort.
 
-| Condition | Cameras | PSNR ↑ | SSIM ↑ | LPIPS ↓ |
+| Condition | Images | PSNR ↑ | SSIM ↑ | LPIPS ↓ |
 |---|---|---|---|---|
-| Baseline B — Sparse + SIFT | 0 (FAILED) | N/A | N/A | N/A |
+| Baseline B — Sparse + SIFT | 12 (FAILED) | N/A | N/A | N/A |
 | Ablation — Sparse + AI matching | 12 | 9.60 dB | 0.2674 | 0.5628 |
-| **Proposed — ViewCrafter + AI matching** | **60** | **15.96 dB** | **0.5456** | **0.3809** |
+| **Proposed — ViewCrafter + AI matching** | **12** | **15.96 dB** | **0.5456** | **0.3809** |
 | Baseline A — Full dataset + SIFT | 301 | 21.99 dB | 0.8069 | 0.2084 |
 
 ---
