@@ -21,7 +21,7 @@ Backup_old_unused/Mask_generation/manifest.json
 Backup_old_unused/Mask_generation/__pycache__/
 others
 inpainting_ready
-.idea
+
 nerf_synthetic
 output_processed
 output_train
@@ -37,5 +37,7 @@ agent_folders
 algorithm_for_codes
 algorithm_summaries
 Code_Reports
+presentation_stuffs
 colmap_images
 
+pythonprojects_2

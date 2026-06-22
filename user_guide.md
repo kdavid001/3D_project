@@ -1,6 +1,234 @@
 # User Guide — Generative Augmented 3D Reconstruction Pipeline
 
-This guide covers local environment setup and how to run each script in the pipeline. The full end-to-end reconstruction (augmentation → pose estimation → 3DGS training) is orchestrated by `Pipeline_files/unified_pipeline.ipynb` on Google Colab. The local scripts documented here are used for dataset preparation and inspection.
+This guide covers two things:
+1. **Standalone usage** — how to download and use each component independently (Sections 1–7)
+2. **Project folder usage** — how to use this pipeline exactly as it was developed, with the full project folder structure and Colab notebooks (Section 8 onwards)
+
+The full end-to-end reconstruction (augmentation → pose estimation → 3DGS training) is orchestrated by `Pipeline_files/unified_pipeline.ipynb` on Google Colab.
+
+---
+
+## Pipeline Architecture — Four-Stage Overview
+
+The pipeline is divided into four sequential macro-blocks. Every run passes through all four stages in order. Understanding this structure is essential before running any individual component.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 1 — Data Preprocessing & Quality Assessment                  │
+│  Script: process_file.py                                            │
+│  Input:  Raw sparse/degraded images (JPEG / PNG / HEIC)            │
+│  Output: manifest.json — per-image tag (NOVEL_VIEW or REPAIR)      │
+│  What it does: Evaluates each image across 5 quality pillars        │
+│  (MUSIQ sharpness, saturation, exposure, contrast, colour cast)     │
+│  and routes it to the appropriate augmentation path.                │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+              ▼              ▼              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 2 — Generative Augmentation Engine                           │
+│  Scripts: diffusion_script_v0.py  /  ViewCrafter (Colab)           │
+│  Three modes — selected by quality tag + scene type:               │
+│                                                                     │
+│  Mode A — Zero123++ (NOVEL_VIEW + synthetic)                        │
+│    Generates 6 novel views per anchor image (object-centric scenes) │
+│    Post-process: RealESRGAN ×4 upscaling → 1024×1024              │
+│                                                                     │
+│  Mode B — ControlNet Tile (REPAIR — any scene type)                │
+│    Restores degraded images (blur, exposure, colour cast)           │
+│    Post-process: RealESRGAN ×4 upscaling → 1024×1024              │
+│                                                                     │
+│  Mode C — ViewCrafter (NOVEL_VIEW + natural / indoor)              │
+│    Video diffusion with DUSt3R point cloud conditioning             │
+│    Interpolates between sparse viewpoints → extracts frames         │
+│                                                                     │
+│  Output: Augmented image set merged with original anchors           │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 3 — Deep Feature Mapping & Pose Estimation                   │
+│  Script: convert_ai.py  (inside gaussian-splatting/)               │
+│  Input:  All images in input_dataset/{scene}/input/                │
+│  Output: Camera poses + sparse 3D point cloud (COLMAP format)      │
+│  What it does: SuperPoint extracts learned keypoints from every     │
+│  image. LightGlue exhaustively matches every image pair. COLMAP    │
+│  incremental_mapping estimates 3D camera positions. image_undis-   │
+│  torter produces the final images/ and sparse/0/ directories.      │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 4 — Volumetric Rasterization (3DGS Training & Evaluation)   │
+│  Scripts: train.py  /  render.py  /  metrics.py                    │
+│  Input:  images/ + sparse/0/ from Stage 3                          │
+│  Output: Trained .ply scene + rendered views + PSNR/SSIM/LPIPS    │
+│  What it does: Initialises millions of 3D Gaussians from the       │
+│  sparse point cloud. Optimises them over 30,000 iterations using   │
+│  photometric loss (L1 + D-SSIM). Adaptive Density Control clones  │
+│  Gaussians in under-reconstructed regions and prunes floaters.     │
+│  Renders held-out test views and computes evaluation metrics.      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Why this structure?
+
+Each stage solves a distinct sub-problem that the next stage depends on:
+
+- **Stage 1** exists because diffusion models perform poorly on genuinely unusable inputs. Running augmentation on severely blurry or clipped images wastes GPU time and produces inconsistent outputs. Screening first ensures the augmentation stage receives only images worth processing.
+
+- **Stage 2** exists because 3DGS's Adaptive Density Control cannot reconstruct regions of the scene that no camera ever observed. With only 12 input images, large scene areas are unobserved. Generative augmentation creates synthetic views of those missing regions before pose estimation begins.
+
+- **Stage 3** exists because 3DGS training requires known camera positions. Classical SIFT fails on wide-baseline sparse inputs (registers 0 cameras from 12 images). Learned feature matching (SuperPoint + LightGlue) solves this by finding correspondences that SIFT misses.
+
+- **Stage 4** is the core reconstruction. Everything prior to this stage is preparation — the 3DGS training is what produces the final photorealistic scene.
+
+---
+
+## Model Reference — When to Use Each
+
+### Zero123++ (Mode A)
+
+**What it does:** Given a single image of an object, generates 6 novel views at fixed azimuth/elevation offsets arranged in a 2×3 grid. Uses a fine-tuned diffusion model trained on object-centric datasets.
+
+**When to use:**
+- NeRF synthetic datasets (lego, hotdog, chair, drums, etc.)
+- Object-centric scenes where the subject is isolated on a black background
+- When you need geometrically distributed novel views around a single object
+
+**When NOT to use:**
+- Unbounded real-world scenes (produces hallucinated backgrounds)
+- Scenes without a black background (background must be removed first using `remove_bg.py`)
+- Scenes with multiple objects at varying distances — Zero123++ assumes a single centred subject
+
+**Input requirement:** Black background. Run `remove_bg.py` first if your images have natural backgrounds.
+
+**VRAM requirement:** ~16 GB minimum. Use an A100 on Colab if local GPU is insufficient.
+
+---
+
+### ControlNet Tile (Mode B)
+
+**What it does:** Takes a degraded image and restores it while preserving its structural content. Uses the original image as a tile control signal — this means the spatial layout and geometry are kept intact while blur, noise, exposure, and colour cast are corrected.
+
+**When to use:**
+- Images flagged as REPAIR by the quality screener
+- Scenes where you have coverage but the images are degraded (motion blur, poor exposure, colour cast from artificial lighting)
+- When you want to improve image quality without changing the viewpoint
+
+**When NOT to use:**
+- When you need new viewpoints — ControlNet Tile only restores, it does not synthesise novel views
+- Strength > 0.5 — at higher strengths the model begins inventing detail that wasn't there, which confuses COLMAP feature matching
+
+**Key parameters:**
+- Strength: 0.35 (fixed) — low enough to preserve structure
+- Guidance scale: 7.0, Steps: 30
+
+**VRAM requirement:** ~12 GB minimum.
+
+---
+
+### ViewCrafter (Mode C)
+
+**What it does:** A video diffusion model that generates a smooth interpolated video sequence between sparse input viewpoints. Unlike Zero123++ which works on individual images, ViewCrafter uses DUSt3R to build a coarse 3D point cloud from all input images simultaneously, then generates a video that is geometrically conditioned on that point cloud. The video is split into frames by FFmpeg and the frames become new synthetic camera views for COLMAP.
+
+**When to use:**
+- Real-world unbounded outdoor or indoor scenes
+- When you have sparse wide-baseline coverage and need intermediate views
+- Tanks and Temples style datasets, self-captured outdoor or indoor scenes
+
+**When NOT to use:**
+- Object-centric scenes with black backgrounds — use Zero123++ instead; ViewCrafter's video diffusion is designed for scene-level interpolation not object rotation
+- Scenes with fewer than 6 input images — DUSt3R needs enough pairs to build a meaningful point cloud
+- When GPU is below 40 GB VRAM — video_length=25 at ddim_steps=50 fills an A100 (40 GB)
+
+**Key parameters:**
+- video_length: 25 frames per clip (reduce to 20 for OOM)
+- ddim_steps: 50 (reduce to 30 for speed, increase to 80 for quality)
+- Resolution: 576×1024 fixed
+- Output: diffusion.mp4 (for black-background object scenes) or render.mp4 (for natural scenes)
+
+**VRAM requirement:** ~38–40 GB. Requires an A100 (40 GB) on Colab. T4 (16 GB) and V100 (16 GB) will OOM.
+
+---
+
+### SuperPoint + LightGlue (Stage 3)
+
+**What it does:** SuperPoint is a deep keypoint detector trained on homographic pairs — it learns to find distinctive points that remain stable across viewpoint and lighting changes. LightGlue is a cross-attention-based matcher that takes two sets of keypoints and finds correspondences using transformer attention, making it robust to ambiguous matches and low image overlap.
+
+**When to use:** Always — this replaces SIFT in COLMAP for all pipeline runs. It is not optional.
+
+**When NOT to use:** There is no scenario where SIFT is preferred for sparse inputs. Classical `convert.py` (SIFT) remains in the `gaussian-splatting/` folder for baseline comparison experiments only.
+
+**Known limitation:** Exhaustive matching (every image pair) is slow on large image sets. For 300+ images, runtime can exceed 30 minutes. This is acceptable for the 60-image proposed pipeline but is a bottleneck for denser inputs.
+
+---
+
+### RealESRGAN (Post-processing, Modes A and B)
+
+**What it does:** Upscales images by 4× using a generative super-resolution model. Applied after Zero123++ and ControlNet outputs to standardise all augmented images to 1024×1024.
+
+**Why it is used:** Zero123++ generates 256×256 outputs. ControlNet outputs are typically 512×512. Without upscaling, COLMAP and 3DGS receive a mix of resolutions which degrades feature matching and training consistency.
+
+**Weight file:** `RealESRGAN_x4plus.pth` — downloaded automatically on first run to `3D_project/weights/`.
+
+---
+
+## Dependency Warnings
+
+### requirements.txt — Version Conflicts
+
+The `requirements.txt` contains version pins written for an earlier Colab environment. Several packages conflict with Colab 2025 defaults and must not be installed at their pinned versions. Cell 3 of the unified pipeline handles this automatically by filtering them out and reinstalling at safe versions.
+
+**Packages managed separately (do not install from requirements.txt directly):**
+
+| Package | Issue | Safe action |
+|---|---|---|
+| `numpy` | Pin predates numpy 2.0; ABI breaks PyTorch | Cell 3 installs at latest compatible version |
+| `huggingface-hub` | Old pin incompatible with new diffusers | Cell 3 installs at safe version |
+| `diffusers` | Version pin breaks with transformers ≥4.40 | Cell 3 installs at safe version |
+| `transformers` | ViewCrafter requires <4.40; main pipeline requires ≥4.40 | Handled by separate conda env (`viewcrafter_env`) |
+| `peft` | Circular import bug with accelerate 1.x | Cell 3 installs at safe version |
+| `accelerate` | Version 1.x introduces circular import with peft | Cell 3 manages version |
+
+> **Warning:** Do not run `pip install -r requirements.txt` directly in a Colab notebook. Always use Cell 3, which applies the version filter before installing. Running requirements.txt directly will likely break diffusers, transformers, or numpy.
+
+### ViewCrafter Conda Environment
+
+ViewCrafter cannot share an environment with the main pipeline due to a hard `transformers < 4.40` dependency. The notebook creates a separate conda environment (`viewcrafter_env`) with:
+- Python 3.10
+- PyTorch 2.1.0 + CUDA 12.1
+- numpy < 2.0 (PyTorch 2.1.0 is incompatible with numpy 2.0+)
+- open-clip-torch pinned to 2.20.0 (newer versions break ViewCrafter's CLIP encoder)
+
+> **Warning:** Do not install packages into `viewcrafter_env` from the base Colab environment. Always use `/usr/local/envs/viewcrafter_env/bin/python -m pip install` or the `conda install -n viewcrafter_env` prefix.
+
+### Automatic Compatibility Patches
+
+The Gradio UI (Cell 7) automatically applies the following patches before running ViewCrafter. These are applied every run — they are idempotent:
+
+| File patched | Issue fixed |
+|---|---|
+| `ViewCrafter/lvdm/models/utils_diffusion.py` | `betas.numpy()` fails with newer PyTorch — replaced with `.tolist()` |
+| `ViewCrafter/extern/dust3r/dust3r/utils/image.py` | `Image.ANTIALIAS` removed in Pillow 10+ — replaced with `Image.LANCZOS` |
+| `torchvision/transforms/functional.py` | `torch.from_numpy()` ABI break — replaced with `torch.frombuffer()` |
+| `torchvision/io/video.py` | `frame.pict_type = "NONE"` invalid in newer PyAV — replaced with `0` |
+| `ViewCrafter/lvdm/modules/encoders/condition.py` | `input_patchnorm` attribute missing in newer open-clip — replaced with `getattr` fallback |
+
+If any of these patches fail, the error is logged in the Live Log panel of the Gradio UI and the ViewCrafter run will abort before inference begins.
+
+### basicsr Patch (Modes A and B)
+
+Cell 4 applies this patch:
+```bash
+sed -i 's/from torchvision.transforms.functional_tensor import rgb_to_grayscale/
+        from torchvision.transforms.functional import rgb_to_grayscale/' \
+    /usr/local/lib/python3.12/dist-packages/basicsr/data/degradations.py
+```
+`functional_tensor` was removed in torchvision 0.16. Without this patch, importing `diffusers` in Python 3.12 raises an `ImportError` that aborts the entire augmentation run. This patch is only needed for Modes A and B — Mode C uses a separate conda environment that has a different torchvision version.
+
+---
 
 ---
 
@@ -204,7 +432,10 @@ Reads the manifest and processes only images marked `REPAIR`. Background is pres
 
 Replaces classical COLMAP SIFT with SuperPoint + LightGlue exhaustive feature matching, enabling camera registration from as few as 12 sparse images.
 
+`convert_ai.py` lives inside the `gaussian-splatting/` folder and must be run from there:
+
 ```bash
+cd gaussian-splatting
 python3 convert_ai.py \
   --source_path /path/to/scene_folder \
   --images input
@@ -229,7 +460,7 @@ The `--images` argument specifies the subfolder within `source_path` that contai
 └── sparse/0/              # Final sparse model ready for 3DGS
 ```
 
-> **Note:** The script auto-installs `hloc` and clones `SuperGluePretrainedNetwork` on first run if they are not present.
+> **Note:** The script auto-installs `hloc` and clones `SuperGluePretrainedNetwork` on first run if they are not present. `SuperGluePretrainedNetwork` must be in the same directory as `convert_ai.py` (i.e. inside `gaussian-splatting/`).
 
 ---
 
@@ -254,14 +485,370 @@ Open the notebook in Colab, select a GPU runtime (A100 recommended for Mode C), 
 
 ---
 
+## 8. Using the Full Project Folder (as developed)
+
+This section documents how the pipeline was actually run during development. If you have a copy of the full project folder (`pythonprojects_2/`), this is the exact setup and workflow used.
+
+### 8.1 Google Drive Folder Structure
+
+The entire project must be uploaded to Google Drive at the following path. The Colab notebooks hard-code this location:
+
+```
+MyDrive/
+└── pythonprojects_2/
+    └── final_year_project/
+        ├── 3D_project/          ← pipeline scripts, data, weights
+        └── gaussian-splatting/  ← modified 3DGS repo (training, pose estimation)
+```
+
+The notebooks use two base path constants defined in Cell 2 (the config cell):
+
+```python
+DRIVE_BASE = "/content/drive/MyDrive/pythonprojects_2/final_year_project/3D_project"
+GS_BASE    = "/content/drive/MyDrive/pythonprojects_2/final_year_project/gaussian-splatting"
+```
+
+If you rename or move either folder, update these two variables in Cell 2 before running anything else.
+
+---
+
+### 8.2 `3D_project/` — Scripts and Data
+
+```
+3D_project/
+├── process_file.py           # Quality screener (main, use this one)
+├── process_file_strict.py    # Stricter threshold variant (used for comparison)
+├── diffusion_script_v0.py    # Generative augmentation — Modes A and B (main version)
+├── corrupt_data.py           # Dataset corruption simulator
+├── remove_bg.py              # Background removal (rembg wrapper for Mode A prep)
+├── rename.py                 # Renames images to numeric filenames (required for ViewCrafter)
+├── Converter.py              # HEIC → JPEG batch converter
+├── requirements.txt          # pip dependencies for all local scripts
+├── checkpoints/
+│   ├── DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth   # DUSt3R backbone (used by ViewCrafter)
+│   └── model_sparse.ckpt                          # ViewCrafter model weights
+├── weights/
+│   └── RealESRGAN_x4plus.pth                      # RealESRGAN upscaler weights
+├── output_train/             # Corrupted/sparse input scenes (input to pipeline)
+│   ├── train/                # Train scene — sparse + degraded
+│   ├── lego/                 # NeRF synthetic lego
+│   ├── hotdog/               # NeRF synthetic hotdog
+│   ├── human_heart_diff/     # Human heart (object-centric)
+│   ├── classroom/            # Indoor classroom scene
+│   └── ...                   # Other tested scenes
+├── output_processed/         # After quality screening — manifest.json + passing images
+│   ├── train/
+│   ├── Lego/
+│   ├── eie_building/
+│   └── ...
+├── output_baseline/          # Full clean datasets (upper bound baselines)
+│   ├── train_dense/          # Train scene — all 301 images, clean
+│   ├── eie_building_dense/
+│   └── ...
+├── output_baseline_d_s/      # Sparse+degraded baselines (classical SIFT comparison)
+│   ├── train/
+│   ├── hotdog/
+│   └── ...
+└── ViewCrafter/              # ViewCrafter repo (cloned locally for reference)
+    ├── checkpoints/          # Symlinked or copied from 3D_project/checkpoints/
+    └── ...
+```
+
+> **Storage note:** `output_train/`, `output_baseline/`, and `output_processed/` contain image sets and are large. `ViewCrafter/` contains model code and is ~500 MB without checkpoints. The checkpoints themselves (`model_sparse.ckpt`) are ~25 GB. Do not re-download if already present.
+
+---
+
+### 8.3 `gaussian-splatting/` — Modified Repo
+
+This is the official [graphdeco-inria/gaussian-splatting](https://github.com/graphdeco-inria/gaussian-splatting) repo with the following files **added**:
+
+| File | Purpose |
+|---|---|
+| `convert_ai.py` | AI pose estimation — SuperPoint + LightGlue replacing SIFT **(main addition, use this)** |
+| `convert_ai_v2.py` | Updated variant of convert_ai.py (experimental) |
+| `boost_contrast.py` | Contrast enhancement utility for preprocessing |
+| `clean_splats.py` | Post-training Gaussian pruning utility |
+| `dust3r_bridge.py` | DUSt3R point cloud integration for ViewCrafter conditioning |
+| `inject_poses.py` | Injects camera poses from external source into COLMAP format |
+| `mast3r_bridge.py` | MUSt3R integration (experimental, not used in main pipeline) |
+| `train_2.py` | Modified training script variant |
+| `pipeline_renderscript.ipynb` | Standalone render + metrics notebook |
+| `results.md` | Experimental results log |
+
+All original files (`train.py`, `render.py`, `metrics.py`, `convert.py`, etc.) are unmodified from the upstream repo. Use `convert_ai.py` **instead of** `convert.py` for AI-based pose estimation.
+
+#### Input dataset structure (per scene)
+
+Each scene lives inside `gaussian-splatting/input_dataset/<scene_name>/` and must have this structure before training:
+
+```
+input_dataset/<scene_name>/
+├── input/          ← all images (original anchors + augmented views merged here)
+├── distorted/
+│   └── sparse/0/  ← raw COLMAP output (cameras.bin, images.bin, points3D.bin)
+├── images/         ← undistorted images (produced by convert_ai.py)
+└── sparse/
+    └── 0/          ← final sparse model ready for train.py
+```
+
+The `input/` folder is the key handoff point: the Gradio UI in the Colab notebook writes all augmented frames plus the original anchor images into this folder before pose estimation runs.
+
+#### Output structure (per scene)
+
+Trained models are saved to `gaussian-splatting/output/<scene_name>_final_run/`. The naming convention used was:
+
+| Output folder | What it represents |
+|---|---|
+| `train_final_run_convert_ai` | Train scene — proposed pipeline (ViewCrafter + LightGlue) |
+| `train_final_run_convert_py` | Train scene — classical SIFT baseline |
+| `baseline_train_dense_final_run` | Train scene — full 301 images, dense upper bound |
+| `baseline_train_d_s_final_run` | Train scene — sparse+degraded, classical SIFT |
+| `baseline_hotdog_final_run` | Hotdog — full clean dataset baseline |
+| `baseline_hotdog_d_s_final_run` | Hotdog — sparse+degraded baseline |
+
+---
+
+### 8.4 Running the Unified Pipeline Notebook
+
+Open `Pipeline_files/unified_pipeline.ipynb` in Google Colab. Select a GPU runtime (A100 recommended for Mode C).
+
+#### Cell-by-cell run order
+
+| Cell | What it does | Notes |
+|---|---|---|
+| Cell 1 | Mount Google Drive | Run first every session |
+| Cell 2 | Set `SCENE_NAME` and `PIPELINE_MODE` | **Only cell you need to edit** |
+| Cell 3 | Install common dependencies | Run after every Colab restart |
+| Cell 4 | HuggingFace login + basicsr patch | Mode A/B only — skipped automatically for Mode C |
+| Cell 5a | Clone ViewCrafter + install condacolab | **Mode C only** — runtime restarts after this |
+| Cell 5a-post | Re-clone ViewCrafter + create conda env | Run immediately after the restart (Mode C only) |
+| Cell 5c | Download ViewCrafter checkpoints (~25 GB) | Mode C only — skip if already downloaded |
+| Cell 6 | Compile CUDA submodules + install COLMAP | Always run regardless of mode |
+| Cell 7 | Launch Gradio UI | Run augmentation here — choose mode, upload images, click Run |
+| Cell 8 | Pose estimation (convert_ai.py) | Run after Gradio reports Done |
+| Cell 9 | 3DGS training — 30,000 iterations | Run after Cell 8 completes |
+| Cell 10 | Render test views + compute PSNR/SSIM/LPIPS | Run after Cell 9 completes |
+
+#### Cell 2 — Config (the only cell you edit)
+
+```python
+SCENE_NAME     = "train"          # must match folder name in input_dataset/
+PIPELINE_MODE  = "viewcrafter"    # "synthesis" | "restoration" | "viewcrafter"
+RESTORE_PROMPT = "high quality photo, detailed, sharp focus, 8k"
+```
+
+`SCENE_NAME` must exactly match the folder name inside `gaussian-splatting/input_dataset/`. The notebook uses this name to locate input images and write output files.
+
+#### Mode C restart sequence
+
+Mode C (ViewCrafter) requires condacolab, which forces a Colab runtime restart. After the restart, run cells in this exact order:
+
+1. Cell 1 — Re-mount Drive
+2. Cell 2 — Re-run config (keep `PIPELINE_MODE = "viewcrafter"`)
+3. Cell 3 — Re-install common deps (restart wipes pip)
+4. Cell 5a-post — Re-clone ViewCrafter + set up conda env
+5. Cell 5c — Check/download checkpoints
+6. Cell 6 onwards — continue normally
+
+---
+
+### 8.5 Running the Baseline Pipelines
+
+Two additional notebooks handle the baseline conditions:
+
+| Notebook | Purpose | Scene path variable |
+|---|---|---|
+| `Pipeline_files/baseline_pipeline.ipynb` | Full clean dataset baseline (Baseline A) | `rawdata_path` → `output_baseline/<scene>/` |
+| `Pipeline_files/baseline_pipeline_Sparse_Degraded.ipynb` | Sparse+degraded, classical SIFT (Baseline B) | `rawdata_path` → `output_baseline_d_s/<scene>/` |
+
+In both notebooks, change `rawdata_path` in Cell 2 to point to the correct scene folder. The notebook derives the scene name automatically from the folder name and prefixes the output accordingly (e.g. `baseline_train`, `baseline_train_d_s`).
+
+---
+
+### 8.6 Model Checkpoints and Weights
+
+The following model files must be present before running the pipeline. They are large and not included in the GitHub repository.
+
+| File | Location in project | Size | Source |
+|---|---|---|---|
+| `DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth` | `3D_project/checkpoints/` | ~1.1 GB | [NAVER DUSt3R releases](https://github.com/naver/dust3r) |
+| `model_sparse.ckpt` | `3D_project/checkpoints/` | ~25 GB | [ViewCrafter releases](https://github.com/Drexubery/ViewCrafter) |
+| `RealESRGAN_x4plus.pth` | `3D_project/weights/` | ~67 MB | [Real-ESRGAN releases](https://github.com/xinntao/Real-ESRGAN) |
+
+The Colab notebook (Cell 5c) downloads the ViewCrafter and DUSt3R checkpoints automatically if they are not already present at `3D_project/checkpoints/`. RealESRGAN weights are downloaded automatically by the `diffusion_script_v0.py` script on first run.
+
+---
+
+### 8.7 Preparing a New Scene
+
+To run the pipeline on a new scene:
+
+1. **Create the scene folder** inside `gaussian-splatting/input_dataset/`:
+   ```
+   gaussian-splatting/input_dataset/<your_scene_name>/
+   └── input/     ← place your images here (JPEG or PNG, numerically named)
+   ```
+
+2. **Rename images to numeric filenames** if using ViewCrafter (Mode C):
+   ```bash
+   # From 3D_project/ with nsenv active
+   python3 rename.py --input_dir ../gaussian-splatting/input_dataset/<scene>/input
+   ```
+   This renames images to `000.jpg`, `001.jpg`, etc. ViewCrafter requires this.
+
+3. **Run quality screening** (optional but recommended):
+   ```bash
+   python3 process_file.py \
+     --mode natural \
+     --input_dir ../gaussian-splatting/input_dataset/<scene>/input \
+     --out_dir ./output_processed/<scene> \
+     --debug
+   ```
+
+4. **Set `SCENE_NAME`** in Cell 2 of the unified pipeline notebook and run.
+
+---
+
+### 8.8 Utility Scripts
+
+These scripts were used during development and may be useful for dataset preparation:
+
+| Script | What it does | Example use |
+|---|---|---|
+| `remove_bg.py` | Removes background using rembg — required for Mode A (Zero123++) | `python3 remove_bg.py --input_dir ./input --out_dir ./input_nobg` |
+| `rename.py` | Renames all images in a folder to numeric sequence (`000.jpg`, `001.jpg`, …) | `python3 rename.py --input_dir ./input` |
+| `Converter.py` | Batch HEIC → JPEG conversion | Run directly: `python3 Converter.py` |
+| `boost_contrast.py` | Applies CLAHE contrast enhancement | Located in `gaussian-splatting/` |
+| `clean_splats.py` | Prunes small/transparent Gaussians from a trained .ply file | Located in `gaussian-splatting/` |
+
+---
+
+## 9. Gradio UI — Parameter Reference
+
+The Gradio interface (Cell 7 of the unified pipeline) exposes the following parameters. These are the values used during development.
+
+### Mode A — Synthesis (Zero123++)
+
+| Field | Default | What it controls |
+|---|---|---|
+| Scene Name | `hotdog` | Must match folder in `output_train/` |
+
+Internally fixed parameters (set in `diffusion_script_v0.py`):
+- Top-20 quality-ranked images selected as anchors
+- 6 novel views generated per anchor image
+- RealESRGAN ×4 upscaling to 1024×1024
+
+### Mode B — Restoration (ControlNet Tile)
+
+| Field | Default | What it controls |
+|---|---|---|
+| Scene Name | `train` | Must match folder in `output_train/` |
+| ControlNet Prompt | `high quality photo, detailed, sharp focus, 8k` | Guides restoration — keep general and quality-focused |
+
+Internally fixed parameters:
+- ControlNet strength: 0.35 (low enough to preserve structure)
+- Guidance scale: 7.0, Steps: 30
+- RealESRGAN ×4 upscaling to 1024×1024
+
+### Mode C — ViewCrafter
+
+| Field | Range | Default | What it controls |
+|---|---|---|---|
+| Scene Name | — | `train` | Must match folder in `output_train/` |
+| Video Length | 10–50 | 25 | Frames per generated clip. Reduce to 20 if OOM on A100. |
+| DDIM Steps | 20–80 | 50 | Diffusion sampling steps. Higher = better quality, slower. |
+
+ViewCrafter runs at resolution 576×1024 using sparse-view interpolation mode with the `model_sparse.ckpt` checkpoint.
+
+---
+
+## 10. Training Flags Reference
+
+When Cell 9 runs `train.py`, it uses these flags:
+
+```bash
+python train.py \
+    -s "{scene_folder}" \
+    -m "{output_folder}" \
+    --eval \
+    --opacity_reset_interval 9000
+```
+
+| Flag | Value | Effect |
+|---|---|---|
+| `-s` | scene folder | Source: must contain `images/` and `sparse/0/` |
+| `-m` | output folder | Where the trained model and renders are saved |
+| `--eval` | — | Reserves a held-out test split for PSNR/SSIM/LPIPS evaluation |
+| `--opacity_reset_interval` | 9000 | Resets Gaussian opacity every 9,000 iterations to prevent floaters |
+
+Cell 9 copies data to the Colab local SSD (`/content/local_workspace/`) before training — this significantly speeds up I/O compared to training directly on Drive. The trained model is copied back to Drive after training completes.
+
+---
+
+## 11. What Gets Staged Into `input/` — Mode by Mode
+
+Understanding what ends up in `gaussian-splatting/input_dataset/{scene}/input/` before COLMAP runs is important for debugging.
+
+**Mode A (Synthesis):**
+- Original anchor images that passed quality screening (PNG, after RealESRGAN upscale)
+- 6 novel views per anchor generated by Zero123++
+- Total: original count + (6 × anchor count)
+
+**Mode B (Restoration):**
+- ControlNet-restored versions of REPAIR-tagged images
+- NOVEL_VIEW images copied as-is
+- All upscaled to 1024×1024 via RealESRGAN
+- Total: same count as input (no new viewpoints added)
+
+**Mode C (ViewCrafter):**
+- All original photos from `output_train/{scene}/train/` (normalised, not quality-filtered out)
+- All frames extracted from ViewCrafter's output video via FFmpeg
+- Total: original count + all extracted frames (e.g. 12 originals + ~275 frames = ~287; after COLMAP registration, effective unique views ≈ 60)
+
+---
+
+## 12. Troubleshooting
+
+### Quality screener passes everything / fails everything
+
+Check which mode you used. `synthetic` (BAD_LIMIT=65) is strict — most real-world photos will fail. `natural` (BAD_LIMIT=40) is appropriate for outdoor scenes. Run with `--debug` to generate per-image diagnostic charts showing which pillar failed.
+
+### COLMAP registers 0 cameras
+
+The `input/` folder likely has too few images or insufficient visual overlap. Check:
+- At least 12 images in `input/` with overlapping viewpoints
+- Images are not all from nearly identical positions
+- For Mode B: if all images were REPAIR-tagged, the augmented set adds no new viewpoints — this limits what COLMAP can register
+
+### ViewCrafter produces hallucinated frames
+
+A small number of hallucinated frames (typically 3–5 out of 40+) is normal. COLMAP's robust estimation treats outlier views as noise. If hallucination is severe, reduce `video_length` or increase `ddim_steps`.
+
+### Out of memory during ViewCrafter
+
+Reduce `video_length` from 25 to 20 in the Gradio slider. Cell 6 removes TensorFlow automatically to free GPU memory — ensure Cell 6 ran before launching the Gradio UI.
+
+### Metrics show N/A or results.json is missing
+
+The `--eval` flag splits images into train/test. If `input/` has fewer than ~15 images, the test split may be too small to evaluate. Ensure enough images are in `input/` before running Cell 8.
+
+### Drive sync is slow during Cells 8 and 9
+
+Data is copied between Drive and the local SSD before processing. On large image sets (200+ images) this can take several minutes. This is normal — Drive → SSD transfer is the bottleneck, not the computation itself.
+
+---
+
 ## Notes
 
 - Always activate `nsenv` before running local scripts.
 - Use `--debug` with `process_file.py` when tuning thresholds — the three-panel charts show exactly which pillar failed and by how much.
 - For GPU-heavy runs (diffusion augmentation, 3DGS training), use the Colab notebook rather than local scripts.
 - All experimental results are logged in `Code_Reports/experimental_results.md`.
+- The `input_old/` folder inside each `input_dataset/<scene>/` contains archived inputs from previous runs — safe to ignore.
+- The live ViewCrafter log is written to Drive at `output_processed/{scene}/final_{scene}_run/viewcrafter_run.log` — useful for debugging if Colab disconnects mid-run.
 
 ---
 
 **Author:** David Ogunmola (kdavid001)
 **Type:** B.Eng Final Year Project
+**Repository:** https://github.com/kdavid001/3D_project
