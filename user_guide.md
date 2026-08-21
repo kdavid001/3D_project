@@ -8,170 +8,48 @@ The full end-to-end reconstruction (augmentation → pose estimation → 3DGS tr
 
 ---
 
-## Pipeline Architecture — Four-Stage Overview
-
-The pipeline is divided into four sequential macro-blocks. Every run passes through all four stages in order. Understanding this structure is essential before running any individual component.
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  STAGE 1 — Data Preprocessing & Quality Assessment                  │
-│  Script: process_file.py                                            │
-│  Input:  Raw sparse/degraded images (JPEG / PNG / HEIC)            │
-│  Output: manifest.json — per-image tag (NOVEL_VIEW or REPAIR)      │
-│  What it does: Evaluates each image across 5 quality pillars        │
-│  (MUSIQ sharpness, saturation, exposure, contrast, colour cast)     │
-│  and routes it to the appropriate augmentation path.                │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  STAGE 2 — Generative Augmentation Engine                           │
-│  Scripts: diffusion_script_v0.py  /  ViewCrafter (Colab)           │
-│  Three modes — selected by quality tag + scene type:               │
-│                                                                     │
-│  Mode A — Zero123++ (NOVEL_VIEW + synthetic)                        │
-│    Generates 6 novel views per anchor image (object-centric scenes) │
-│    Post-process: RealESRGAN ×4 upscaling → 1024×1024              │
-│                                                                     │
-│  Mode B — ControlNet Tile (REPAIR — any scene type)                │
-│    Restores degraded images (blur, exposure, colour cast)           │
-│    Post-process: RealESRGAN ×4 upscaling → 1024×1024              │
-│                                                                     │
-│  Mode C — ViewCrafter (NOVEL_VIEW + natural / indoor)              │
-│    Video diffusion with DUSt3R point cloud conditioning             │
-│    Interpolates between sparse viewpoints → extracts frames         │
-│                                                                     │
-│  Output: Augmented image set merged with original anchors           │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  STAGE 3 — Deep Feature Mapping & Pose Estimation                   │
-│  Script: convert_ai.py  (inside gaussian-splatting/)               │
-│  Input:  All images in input_dataset/{scene}/input/                │
-│  Output: Camera poses + sparse 3D point cloud (COLMAP format)      │
-│  What it does: SuperPoint extracts learned keypoints from every     │
-│  image. LightGlue exhaustively matches every image pair. COLMAP    │
-│  incremental_mapping estimates 3D camera positions. image_undis-   │
-│  torter produces the final images/ and sparse/0/ directories.      │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  STAGE 4 — Volumetric Rasterization (3DGS Training & Evaluation)   │
-│  Scripts: train.py  /  render.py  /  metrics.py                    │
-│  Input:  images/ + sparse/0/ from Stage 3                          │
-│  Output: Trained .ply scene + rendered views + PSNR/SSIM/LPIPS    │
-│  What it does: Initialises millions of 3D Gaussians from the       │
-│  sparse point cloud. Optimises them over 30,000 iterations using   │
-│  photometric loss (L1 + D-SSIM). Adaptive Density Control clones  │
-│  Gaussians in under-reconstructed regions and prunes floaters.     │
-│  Renders held-out test views and computes evaluation metrics.      │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Why this structure?
-
-Each stage solves a distinct sub-problem that the next stage depends on:
-
-- **Stage 1** exists because diffusion models perform poorly on genuinely unusable inputs. Running augmentation on severely blurry or clipped images wastes GPU time and produces inconsistent outputs. Screening first ensures the augmentation stage receives only images worth processing.
-
-- **Stage 2** exists because 3DGS's Adaptive Density Control cannot reconstruct regions of the scene that no camera ever observed. With only 12 input images, large scene areas are unobserved. Generative augmentation creates synthetic views of those missing regions before pose estimation begins.
-
-- **Stage 3** exists because 3DGS training requires known camera positions. Classical SIFT fails on wide-baseline sparse inputs (registers 0 cameras from 12 images). Learned feature matching (SuperPoint + LightGlue) solves this by finding correspondences that SIFT misses.
-
-- **Stage 4** is the core reconstruction. Everything prior to this stage is preparation — the 3DGS training is what produces the final photorealistic scene.
-
----
-
 ## Model Reference — When to Use Each
 
 ### Zero123++ (Mode A)
 
-**What it does:** Given a single image of an object, generates 6 novel views at fixed azimuth/elevation offsets arranged in a 2×3 grid. Uses a fine-tuned diffusion model trained on object-centric datasets.
-
-**When to use:**
-- NeRF synthetic datasets (lego, hotdog, chair, drums, etc.)
-- Object-centric scenes where the subject is isolated on a black background
-- When you need geometrically distributed novel views around a single object
-
-**When NOT to use:**
-- Unbounded real-world scenes (produces hallucinated backgrounds)
-- Scenes without a black background (background must be removed first using `remove_bg.py`)
-- Scenes with multiple objects at varying distances — Zero123++ assumes a single centred subject
-
-**Input requirement:** Black background. Run `remove_bg.py` first if your images have natural backgrounds.
-
-**VRAM requirement:** ~16 GB minimum. Use an A100 on Colab if local GPU is insufficient.
-
----
+| | |
+|---|---|
+| **Use for** | Object-centric scenes with black background (NeRF synthetic: lego, hotdog, etc.) |
+| **Don't use for** | Unbounded real-world scenes, scenes without black background |
+| **Input requirement** | Black background — run `remove_bg.py` first if needed |
+| **VRAM** | ~16 GB minimum |
 
 ### ControlNet Tile (Mode B)
 
-**What it does:** Takes a degraded image and restores it while preserving its structural content. Uses the original image as a tile control signal — this means the spatial layout and geometry are kept intact while blur, noise, exposure, and colour cast are corrected.
-
-**When to use:**
-- Images flagged as REPAIR by the quality screener
-- Scenes where you have coverage but the images are degraded (motion blur, poor exposure, colour cast from artificial lighting)
-- When you want to improve image quality without changing the viewpoint
-
-**When NOT to use:**
-- When you need new viewpoints — ControlNet Tile only restores, it does not synthesise novel views
-- Strength > 0.5 — at higher strengths the model begins inventing detail that wasn't there, which confuses COLMAP feature matching
-
-**Key parameters:**
-- Strength: 0.35 (fixed) — low enough to preserve structure
-- Guidance scale: 7.0, Steps: 30
-
-**VRAM requirement:** ~12 GB minimum.
-
----
+| | |
+|---|---|
+| **Use for** | Images flagged as REPAIR by the quality screener — restores blur, exposure, colour cast while preserving structure |
+| **Don't use for** | Generating new viewpoints — this only restores, it does not synthesise |
+| **Key parameters** | Strength: 0.35, Guidance scale: 7.0, Steps: 30 |
+| **VRAM** | ~12 GB minimum |
 
 ### ViewCrafter (Mode C)
 
-**What it does:** A video diffusion model that generates a smooth interpolated video sequence between sparse input viewpoints. Unlike Zero123++ which works on individual images, ViewCrafter uses DUSt3R to build a coarse 3D point cloud from all input images simultaneously, then generates a video that is geometrically conditioned on that point cloud. The video is split into frames by FFmpeg and the frames become new synthetic camera views for COLMAP.
-
-**When to use:**
-- Real-world unbounded outdoor or indoor scenes
-- When you have sparse wide-baseline coverage and need intermediate views
-- Tanks and Temples style datasets, self-captured outdoor or indoor scenes
-
-**When NOT to use:**
-- Object-centric scenes with black backgrounds — use Zero123++ instead; ViewCrafter's video diffusion is designed for scene-level interpolation not object rotation
-- Scenes with fewer than 6 input images — DUSt3R needs enough pairs to build a meaningful point cloud
-- When GPU is below 40 GB VRAM — video_length=25 at ddim_steps=50 fills an A100 (40 GB)
-
-**Key parameters:**
-- video_length: 25 frames per clip (reduce to 20 for OOM)
-- ddim_steps: 50 (reduce to 30 for speed, increase to 80 for quality)
-- Resolution: 576×1024 fixed
-- Output: diffusion.mp4 (for black-background object scenes) or render.mp4 (for natural scenes)
-
-**VRAM requirement:** ~38–40 GB. Requires an A100 (40 GB) on Colab. T4 (16 GB) and V100 (16 GB) will OOM.
-
----
+| | |
+|---|---|
+| **Use for** | Real-world outdoor/indoor scenes with sparse wide-baseline coverage |
+| **Don't use for** | Object-centric black-background scenes (use Zero123++), fewer than 6 input images |
+| **Key parameters** | video_length: 25 (reduce to 20 for OOM), ddim_steps: 50, resolution: 576×1024 |
+| **VRAM** | ~38–40 GB — requires A100 on Colab. T4/V100 will OOM |
 
 ### SuperPoint + LightGlue (Stage 3)
 
-**What it does:** SuperPoint is a deep keypoint detector trained on homographic pairs — it learns to find distinctive points that remain stable across viewpoint and lighting changes. LightGlue is a cross-attention-based matcher that takes two sets of keypoints and finds correspondences using transformer attention, making it robust to ambiguous matches and low image overlap.
-
-**When to use:** Always — this replaces SIFT in COLMAP for all pipeline runs. It is not optional.
-
-**When NOT to use:** There is no scenario where SIFT is preferred for sparse inputs. Classical `convert.py` (SIFT) remains in the `gaussian-splatting/` folder for baseline comparison experiments only.
-
-**Known limitation:** Exhaustive matching (every image pair) is slow on large image sets. For 300+ images, runtime can exceed 30 minutes. This is acceptable for the 60-image proposed pipeline but is a bottleneck for denser inputs.
-
----
+| | |
+|---|---|
+| **Use for** | Always — replaces SIFT in COLMAP for all pipeline runs |
+| **Known limitation** | Exhaustive matching scales O(N²). Manageable at 60 images, slow at 300+ |
 
 ### RealESRGAN (Post-processing, Modes A and B)
 
-**What it does:** Upscales images by 4× using a generative super-resolution model. Applied after Zero123++ and ControlNet outputs to standardise all augmented images to 1024×1024.
-
-**Why it is used:** Zero123++ generates 256×256 outputs. ControlNet outputs are typically 512×512. Without upscaling, COLMAP and 3DGS receive a mix of resolutions which degrades feature matching and training consistency.
-
-**Weight file:** `RealESRGAN_x4plus.pth` — downloaded automatically on first run to `3D_project/weights/`.
+| | |
+|---|---|
+| **Use for** | 4× upscaling of Zero123++ (256×256) and ControlNet (512×512) outputs to 1024×1024 |
+| **Weight file** | `RealESRGAN_x4plus.pth` — downloaded automatically on first run |
 
 ---
 
@@ -338,16 +216,6 @@ python3 process_file.py \
 | `<out_dir>/processed_train/` | Images that passed (NOVEL_VIEW) — copied here |
 | `<out_dir>/manifest.json` | Per-image decision log with score, decision, and reason |
 | `<out_dir>/debug_visuals/` | Diagnostic charts (only when `--debug` is set) |
-
-### MUSIQ soft/hard logic
-
-MUSIQ scores can be miscalibrated for indoor scenes shot under artificial lighting. The screener uses a two-level gate:
-
-- `score < HARD_LIMIT` — always fail regardless of the other four pillars (genuinely unusable image)
-- `HARD_LIMIT ≤ score < BAD_LIMIT` — only fail if at least one other pillar also fails (borderline, corroborated failure)
-- `score ≥ BAD_LIMIT` — MUSIQ passes; other pillars decide independently
-
-This prevents sharp indoor images from being incorrectly flagged while still catching genuinely blurry outdoor images that coincidentally pass all radiometric checks.
 
 ---
 
@@ -770,8 +638,7 @@ When Cell 9 runs `train.py`, it uses these flags:
 python train.py \
     -s "{scene_folder}" \
     -m "{output_folder}" \
-    --eval \
-    --opacity_reset_interval 9000
+    --eval
 ```
 
 | Flag | Value | Effect |
@@ -779,7 +646,6 @@ python train.py \
 | `-s` | scene folder | Source: must contain `images/` and `sparse/0/` |
 | `-m` | output folder | Where the trained model and renders are saved |
 | `--eval` | — | Reserves a held-out test split for PSNR/SSIM/LPIPS evaluation |
-| `--opacity_reset_interval` | 9000 | Resets Gaussian opacity every 9,000 iterations to prevent floaters |
 
 Cell 9 copies data to the Colab local SSD (`/content/local_workspace/`) before training — this significantly speeds up I/O compared to training directly on Drive. The trained model is copied back to Drive after training completes.
 

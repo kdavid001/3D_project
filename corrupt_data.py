@@ -60,7 +60,7 @@ def apply_defocus_blur(img):
     Simulates Missed Focus (Optical Blur).
     Uses Gaussian Blur (softer than Motion Blur).
     """
-    k_size = random.choice([7, 11, 15, 21])  # Odd numbers only
+    k_size = random.choice([27, 33, 37, 39]) #only odd numbers
     return cv2.GaussianBlur(img, (k_size, k_size), 0)
 
 

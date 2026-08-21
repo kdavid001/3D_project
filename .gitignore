@@ -22,6 +22,7 @@ Backup_old_unused/Mask_generation/__pycache__/
 others
 inpainting_ready
 
+nerf_llff_data
 nerf_synthetic
 output_processed
 output_train

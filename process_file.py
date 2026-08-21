@@ -129,7 +129,7 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
     score = get_quality_score(img_path, settings['USE_CROP'])
     score = round(score, 2)
     is_qual_fail = score < settings['BAD_LIMIT']
-    qual_reason = f"Blurry ({score})" if is_qual_fail else "Sharp"
+    qual_reason = f"Low Quality ({score})" if is_qual_fail else "Sharp"
 
     # --- 2. RADIOMETRICS ---
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -143,7 +143,7 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
     avg_sat = np.mean(s[mask])
     clipped_ratio = np.sum((s >= 250) & mask) / valid_pixels
     is_sat_fail = avg_sat > settings['SAT_MAX_AVG'] or clipped_ratio > settings['SAT_CLIPPED']
-    sat_reason = "Neon" if is_sat_fail else "Color OK"
+    sat_reason = f"Oversaturated (avg:{avg_sat:.0f})" if is_sat_fail else "Color OK"
 
     # Exposure
     v = hsv[:, :, 2]
@@ -152,12 +152,20 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
     is_exp_fail = (avg_val > settings['EXP_MAX_AVG'] or
                    avg_val < settings['EXP_MIN_AVG'] or
                    highlight_ratio > settings['EXP_CLIPPED'])
-    exp_reason = "Bad Light" if is_exp_fail else "Light OK"
+    if is_exp_fail:
+        if avg_val < settings['EXP_MIN_AVG']:
+            exp_reason = f"Underexposed (V:{avg_val:.0f})"
+        elif avg_val > settings['EXP_MAX_AVG']:
+            exp_reason = f"Overexposed (V:{avg_val:.0f})"
+        else:
+            exp_reason = f"Blown Highlights ({highlight_ratio*100:.0f}%)"
+    else:
+        exp_reason = "Light OK"
 
     # Contrast
     contrast_val = np.std(v[mask])
     is_cont_fail = contrast_val < settings['CONTRAST_MIN']
-    cont_reason = "Flat" if is_cont_fail else "Contrasty"
+    cont_reason = f"Low Contrast (std:{contrast_val:.1f})" if is_cont_fail else "Contrasty"
 
     # --- 3. COLOR CAST ---
     lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
@@ -179,16 +187,18 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
 
     final_reason = "Pass"
     if is_fail:
+        reasons = []
+        if is_qual_effective_fail:
+            reasons.append(qual_reason)
+        if is_sat_fail:
+            reasons.append(sat_reason)
+        if is_exp_fail:
+            reasons.append(exp_reason)
+        if is_cont_fail:
+            reasons.append(cont_reason)
         if is_cast_fail:
-            final_reason = cast_reason
-        elif is_qual_effective_fail:
-            final_reason = qual_reason
-        elif is_sat_fail:
-            final_reason = sat_reason
-        elif is_exp_fail:
-            final_reason = exp_reason
-        elif is_cont_fail:
-            final_reason = cont_reason
+            reasons.append(cast_reason)
+        final_reason = " + ".join(reasons) if reasons else "Fail"
 
     # --- VISUAL DEBUG (NOW WITH LEGENDS) ---
     if debug_dir:
@@ -199,8 +209,9 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
         # Panel 1: Image
         ax1 = fig.add_subplot(gs[0, 0])
         status_color = 'red' if is_fail else 'green'
-        ax1.set_title(f"{'REJECT' if is_fail else 'PASS'}: {final_reason}\nScore: {score}",
-                      color=status_color, fontweight='bold', fontsize=14)
+        title_size = 11 if len(final_reason) > 30 else 14
+        ax1.set_title(f"{'REJECT' if is_fail else 'PASS'}: {final_reason}\nMUSIQ Score: {score}",
+                      color=status_color, fontweight='bold', fontsize=title_size)
         ax1.imshow(img_rgb)
         ax1.axis('off')
 
@@ -260,7 +271,7 @@ def analyze_image(img_path, settings, debug_dir=None, save_name=None):
 
 def process_batch(args):
     input_dir = args.input_dir
-    mode = args.mode
+    mode = args.mode if args.mode != "outdoor" else "natural"
     settings = THRESHOLDS[mode]
     search_dir = os.path.join(input_dir, "train")
     if not os.path.exists(search_dir): search_dir = input_dir
@@ -322,7 +333,7 @@ def process_batch(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["natural", "indoor", "synthetic"], default="synthetic")
+    parser.add_argument("--mode", choices=["natural", "outdoor", "indoor", "synthetic"], default="synthetic")
     parser.add_argument("--input_dir", type=str)
     parser.add_argument("--test_image", type=str)
     parser.add_argument("--out_dir", type=str, default="./output")
