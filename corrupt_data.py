@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """
-corrupt_dataset_v3.py - The "Sensor/Image Failure" Generator
-
-Updates:
-1. REMOVED: Black Holes (Geometry Artifacts).
-2. ADDED: Radiometric Corruptions (Saturation, Exposure Extremes).
-3. KEEPS: Optical Corruptions (Defocus Blur, Noise).
-4. KEEPS: Sector Deletion (Missing Views logic).
-5. ADDED: Single Image Auto-Detect (Generates isolated failure modes for thesis collages).
+corrupt_data.py - Synthetic image corruption generator for GA-3DGS testing.
+Generates radiometric corruptions (saturation, exposure extremes), optical
+corruptions (defocus blur, noise), and sector deletion (missing views) to
+simulate sensor and image failure modes for quality screener validation.
 """
 import json
 import os

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-load_images_legend.py - Fixed for Natural Images with BETTER GRAPHS
-(Includes Legends, Axis Labels, and Your Custom Thresholds)
+process_file.py - Quality screener for GA-3DGS input images.
+Uses MUSIQ perceptual quality scoring combined with five radiometric
+pillars (saturation, exposure, contrast, colour cast) to filter sparse
+input images before they enter the 3DGS training pipeline.
 """
 
 import os

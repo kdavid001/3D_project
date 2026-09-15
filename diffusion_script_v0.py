@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-COMBINED PIPELINE V2.0 (Zero123++ Edition)
-HYBRID DATA ARCHITECTURE PATCHES APPLIED
-
-MODES:
-1. --mode synthesis (DEFAULT): Runs Zero-123++ (2x3 Grid, Black BG).
-2. --mode restoration: Runs ControlNet logic (Fixes natural images, Keeps BG).
+diffusion_script_v0.py - Early-stage diffusion augmentation script for GA-3DGS.
+Supports two augmentation modes:
+  --mode synthesis (default): Runs Zero123++ to generate multi-view images.
+  --mode restoration: Runs ControlNet to restore degraded natural images.
 """
 
 import sys
