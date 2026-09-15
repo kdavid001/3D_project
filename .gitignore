@@ -42,3 +42,11 @@ presentation_stuffs
 colmap_images
 
 pythonprojects_2
+
+# Paper drafts
+GA-3DGS_Paper.md
+GAI_Augmented-3DGS.docx
+experimental_results.md
+
+# Private image data
+output_images/eie_building_dense/
