@@ -5,12 +5,13 @@
 
 ## About This Research
 
-This project investigates the reconstruction of photorealistic 3D scenes from sparse, degraded image inputs using **3D Gaussian Splatting (3DGS)** as the core rendering framework. The central problem addressed is that real-world 3D capture is rarely ideal, photographers cannot always provide the dense, uniformly distributed, high-quality imagery that classical Structure-from-Motion (SfM) and neural rendering pipelines assume. This work proposes and evaluates an augmentation pipeline that recovers reconstruction quality from as few as 12 input images, including images affected by blur, poor exposure, colour cast, and missing viewpoints.
+This project investigates the reconstruction of photorealistic 3D scenes from sparse image inputs using **3D Gaussian Splatting (3DGS)** as the core rendering framework. The central problem addressed is that real-world 3D capture is rarely ideal, photographers cannot always provide the dense, uniformly distributed, high-quality imagery that classical Structure-from-Motion (SfM) and neural rendering pipelines assume. This work proposes an augmentation pipeline that recovers reconstruction quality from as few as 12 sparse input images, evaluated with ViewCrafter on two scenes. A quality screener flags images with blur, poor exposure or colour cast before reconstruction.
 
-The pipeline operates in three stages:
-1. **Quality Screening** — A five-pillar radiometric screener (MUSIQ + saturation, exposure, contrast, colour cast) evaluates each input image and routes it to the appropriate augmentation path across three scene-adaptive modes (natural, indoor, synthetic).
-2. **Generative Augmentation** — Three diffusion-based modes handle different scene types: **Zero123++** (Mode A) synthesises geometrically consistent novel views for object-centric scenes; **ControlNet Tile** (Mode B) restores degraded images; **ViewCrafter** (Mode C) interpolates between sparse viewpoints for real-world scenes using DUSt3R point cloud conditioning.
+The pipeline operates in four stages:
+1. **Quality Screening** — A five-pillar radiometric screener (MUSIQ + saturation, exposure, contrast, colour cast) evaluates each input image and accepts or rejects it using scene-adaptive thresholds (natural, indoor, synthetic).
+2. **Generative Augmentation** — Three diffusion-based modes handle different scene types: **Zero123++** (Mode A) synthesises geometrically consistent novel views for object-centric scenes; **ControlNet Tile** (Mode B) restores degraded images; **ViewCrafter** (Mode C) interpolates between sparse viewpoints for real-world scenes using DUSt3R point cloud conditioning. Only Mode C (ViewCrafter) is evaluated in the results below.
 3. **AI-Driven Pose Estimation** — **SuperPoint + LightGlue** exhaustive feature matching replaces classical SIFT for COLMAP-based camera pose estimation, enabling registration in cases where SIFT fails entirely.
+4. **3DGS Training and Evaluation** — Standard 3DGS training for 30,000 iterations with the `--eval` flag. PSNR, SSIM and LPIPS are computed on held-out test views.
 
 ### Key Result
 The proposed pipeline recovers **51.3% of the quality gap** between a sparse no-augmentation baseline (PSNR 9.60 dB) and the full 301-image upper bound (PSNR 21.99 dB), using only **12 sparse input images** — a **96% reduction** in acquisition effort.
@@ -22,26 +23,28 @@ The proposed pipeline recovers **51.3% of the quality gap** between a sparse no-
 | **Proposed — ViewCrafter + AI matching** | **12** | **15.96 dB** | **0.5456** | **0.3809** |
 | Baseline A — Full dataset + SIFT | 301 | 21.99 dB | 0.8069 | 0.2084 |
 
+On the indoor Fern scene, ViewCrafter expanded 10 sparse images to 113 views and raised PSNR from 18.87 to 24.58 dB, evaluated on 15 held-out views.
+
 ---
 
 ## Repository Structure
 
 ```
 3D_project/
-├── process_file.py              # Five-pillar quality screener (MUSIQ-based, 3 modes)
-├── convert_ai.py                # SuperPoint + LightGlue → COLMAP pose estimation
-│                                #   (replaces convert.py from gaussian-splatting)
-├── diffusion_script_v0.py       # Generative augmentation engine (Modes A / B)
-├── corrupt_data.py              # Dataset corruption simulator (blur, exposure, noise)
-├── requirements.txt             # Python dependencies
-├── user_guide.md                # Full setup and usage instructions
+├── process_file.py          # Five-pillar quality screener (MUSIQ-based)
+├── convert_ai.py            # SuperPoint + LightGlue → COLMAP pose estimation
+│                            #   (replaces convert.py from gaussian-splatting)
+├── diffusion_script_v0.py   # Generative augmentation (Modes A / B)
+├── corrupt_data.py          # Dataset corruption simulator
+├── My_relaxed_convert.py    # Modified gaussian-splatting convert.py (COLMAP)
+├── rename.py                # Dataset organising helper
+├── requirements.txt
+├── user_guide.md            # Setup and usage
+├── DEVNOTES.md              # Development notes
 ├── Pipeline_files/
-│   └── unified_pipeline.ipynb  # Main Colab notebook — all three pipeline modes
-├── algorithm_for_codes/         # Detailed pseudocode for all 6 algorithms
-├── Code_Reports/
-│   ├── experimental_results.md  # Full experimental log and results table
-│   └── flowdiagram/             # Mermaid flowcharts for all pipeline stages
-└── algorithm_summaries/         # Condensed algorithm summaries
+│   └── unified_pipeline.ipynb
+├── images_for/              # Rendered results
+└── output_images/           # Screener output examples
 ```
 
 ---
@@ -102,7 +105,7 @@ Several components of this pipeline have potential as standalone research contri
 
 - **Learned Feature Matching as a SIFT Replacement for Sparse-Input 3DGS** — `convert_ai.py` demonstrates that SuperPoint + LightGlue exhaustive matching enables camera registration from as few as 12 wide-baseline images where classical SIFT fails completely. A systematic benchmarking study across scene types and sparsity levels would establish this as a replicable finding.
 
-- **Generative Augmentation Routing for 3DGS Reconstruction** — The adaptive routing framework (quality tag + scene type → diffusion model selection) is the primary contribution of this work. Extending the evaluation to more scenes, augmentation models, and sparsity levels is the natural next step toward a full research paper.
+- **Generative Augmentation Routing for 3DGS Reconstruction** — The augmentation mode is currently chosen manually from the scene type. Automating that choice from the quality screen and scene type, and extending the evaluation to more scenes and sparsity levels, is the natural next step toward a full research paper.
 
 ---
 
@@ -113,5 +116,9 @@ If you use this work, please also cite the following:
 - Kerbl et al. (2023) — [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/)
 - Shi et al. (2023) — [Zero123++](https://github.com/sudo-ai-3d/zero123plus)
 - Yu et al. (2024) — [ViewCrafter](https://github.com/Drexubery/ViewCrafter)
-- Zhang et al. (2023) — [LightGlue](https://github.com/cvg/LightGlue)
+- Lindenberger et al. (2023) — [LightGlue](https://github.com/cvg/LightGlue)
 - Wang et al. (2023) — [DUSt3R](https://github.com/naver/dust3r)
+- Ke et al. (2021) — [MUSIQ](https://github.com/google-research/google-research/tree/master/musiq)
+- DeTone et al. (2018) — [SuperPoint](https://github.com/magicleap/SuperPointPretrainedNetwork)
+- Sarlin et al. (2019) — [hloc](https://github.com/cvg/Hierarchical-Localization)
+- Schönberger and Frahm (2016) — [COLMAP](https://colmap.github.io)
